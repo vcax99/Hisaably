@@ -1,0 +1,6 @@
+tags:
+  live:
+    # Talks to the real dev backend; run via scripts/run_live_tests.sh.
+    timeout: 2x
+  screenshots:
+    # Renders PNG previews; run via scripts/render_screens.sh.

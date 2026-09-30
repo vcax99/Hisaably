@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches AppColors.background so there is no white flash at launch. -->
+    <color name="launch_background">#0B0B0D</color>
+</resources>
