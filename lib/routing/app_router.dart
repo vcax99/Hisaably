@@ -106,7 +106,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           _branch(Routes.memberDashboard, const DashboardScreen()),
           _branch(Routes.memberExpenses, const ExpensesScreen()),
           _branch(Routes.memberIncome, const IncomeScreen()),
-          _branch(Routes.memberGroups, const GroupsScreen()),
+          _branch(
+            Routes.memberGroups,
+            const GroupsScreen(),
+            children: [
+              GoRoute(
+                path: ':groupId',
+                builder: (_, state) => GroupDetailScreen(
+                  groupId: state.pathParameters['groupId']!,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       StatefulShellRoute.indexedStack(

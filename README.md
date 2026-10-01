@@ -38,6 +38,7 @@ flutter analyze
 flutter test                      # unit + widget tests (live tests are skipped)
 scripts/run_live_tests.sh         # Flutter tests against the dev backend (throwaway users)
 supabase/tests/e2e/run_admin_users_e2e.sh   # admin-users Edge Function end-to-end
+QA_ADMIN_PASSWORD=… QA_MEMBER_PASSWORD=… scripts/run_device_flows.sh <device-id>   # UI flows on a simulator/emulator
 ```
 Live runners fetch the dev project's keys with your Supabase CLI login and keep them in memory only (`scripts/with_dev_keys.sh`).
 

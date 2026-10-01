@@ -91,10 +91,18 @@ class AdminGroupsScreen extends ConsumerWidget {
 }
 
 class GroupCard extends StatelessWidget {
-  const GroupCard({super.key, required this.group, required this.onTap});
+  const GroupCard({
+    super.key,
+    required this.group,
+    required this.onTap,
+    this.badge,
+  });
 
   final Group group;
   final VoidCallback onTap;
+
+  /// Optional extra label, e.g. "Group Admin" in the member shell.
+  final Widget? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -136,10 +144,16 @@ class GroupCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!group.isActive)
-                const StatusChip('Disabled', tone: ChipTone.danger)
-              else if (group.isFull)
-                const StatusChip('Full', tone: ChipTone.warning),
+              Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  ?badge,
+                  if (!group.isActive)
+                    const StatusChip('Disabled', tone: ChipTone.danger)
+                  else if (group.isFull)
+                    const StatusChip('Full', tone: ChipTone.warning),
+                ],
+              ),
               const SizedBox(width: AppSpacing.xs),
               const Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],

@@ -13,6 +13,7 @@ abstract final class Routes {
   static const memberExpenses = '/m/expenses';
   static const memberIncome = '/m/income';
   static const memberGroups = '/m/groups';
+  static String memberGroup(String id) => '/m/groups/$id';
 
   static const adminDashboard = '/a/dashboard';
   static const adminGroups = '/a/groups';

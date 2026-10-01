@@ -109,6 +109,11 @@ class _TextInputDialogState extends State<_TextInputDialog> {
           controller: _controller,
           autofocus: true,
           obscureText: _obscure,
+          // Dialog inputs (names, admin-set passwords) are never the
+          // viewer's own credentials: keep the OS from offering to save them.
+          autofillHints: null,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => _submit(),
           decoration: InputDecoration(

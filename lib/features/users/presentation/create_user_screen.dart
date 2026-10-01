@@ -46,7 +46,6 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   final _name = TextEditingController();
   final _username = TextEditingController();
   final _password = TextEditingController();
-  bool _obscure = true;
   bool _busy = false;
   bool _submitted = false;
   String? _error;
@@ -160,7 +159,8 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                 enabled: !_busy,
                 autocorrect: false,
                 enableSuggestions: false,
-                keyboardType: TextInputType.visiblePassword,
+                autofillHints: null,
+                keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.next,
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9._]')),
@@ -174,26 +174,22 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                     : 'Use 3–30 letters/numbers; . or _ only in the middle',
               ),
               const SizedBox(height: AppSpacing.md),
+              // Visible plain field with autofill off: this is someone else's
+              // password (the admin shares it), so iOS/Android must not offer
+              // to save it to the admin's own keychain.
               TextFormField(
                 controller: _password,
                 enabled: !_busy,
-                obscureText: _obscure,
                 autocorrect: false,
                 enableSuggestions: false,
+                autofillHints: null,
+                keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _submit(),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Password',
-                  helperText: 'At least $minPasswordLength characters',
-                  suffixIcon: IconButton(
-                    tooltip: _obscure ? 'Show password' : 'Hide password',
-                    icon: Icon(
-                      _obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
+                  helperText:
+                      'At least $minPasswordLength characters · shown so you can share it',
                 ),
                 validator: (v) => validatePassword(v ?? ''),
               ),
@@ -202,10 +198,8 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                 child: TextButton.icon(
                   onPressed: _busy
                       ? null
-                      : () => setState(() {
-                          _password.text = generatePassword();
-                          _obscure = false;
-                        }),
+                      : () =>
+                            setState(() => _password.text = generatePassword()),
                   icon: const Icon(Icons.auto_awesome_rounded, size: 18),
                   label: const Text('Generate password'),
                 ),

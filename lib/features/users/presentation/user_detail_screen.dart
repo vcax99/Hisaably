@@ -73,7 +73,6 @@ class _UserDetailBody extends ConsumerWidget {
       title: 'Reset password',
       label: 'New password',
       confirmLabel: 'Reset',
-      obscure: true,
       validator: validatePassword,
     );
     if (password == null || !context.mounted) return;
