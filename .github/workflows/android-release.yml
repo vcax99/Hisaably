@@ -51,10 +51,12 @@ jobs:
       - name: Build signed APK
         run: flutter build apk --release --dart-define-from-file=env/app.json
 
-      - name: Check the signature
+      - name: Check the signature (must be the Hisaably upload key)
         run: |
-          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)apksigner
-          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | grep "Signer #1 certificate DN"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          echo "Using $APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk | tee signature.txt
+          grep -q "CN=Bikash, O=Hisaably" signature.txt
 
       - name: Rename
         run: mv build/app/outputs/flutter-apk/app-release.apk "Hisaably-${{ github.run_number }}.apk"
