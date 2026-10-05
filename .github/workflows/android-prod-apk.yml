@@ -1,0 +1,19 @@
+# Actions tab → "Android prod APK" → Run workflow, then download
+# Hisaably-prod.apk from the run's Artifacts. Talks to the hisaably-prod backend
+# (settings from the APP_ENV_JSON secret).
+name: Android prod APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    uses: ./.github/workflows/_android-apk.yml
+    with:
+      flavor: prod
+    secrets:
+      env_json: ${{ secrets.APP_ENV_JSON }}
+      keystore_base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      keystore_password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      key_alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+      key_password: ${{ secrets.ANDROID_KEY_PASSWORD }}
