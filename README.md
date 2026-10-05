@@ -1,84 +1,255 @@
+<div align="center">
+
+<img src=".github/readme/icon.png" width="104" alt="Hisaably logo" />
+
 # Hisaably
 
-A collective money tracker for Android and iOS. Money belongs to the **group**, not to individual members: everyone in a group records income and expenses into one shared ledger, with monthly balances that carry forward.
+### Saaf hisaab, pakki dosti.
 
-**Author:** Bikash
+**One shared wallet for your group, with every rupee accounted for.**
 
-**Stack:** Flutter · Riverpod · GoRouter · Supabase (Auth, Postgres + RLS, RPC, Edge Functions) · Drift/SQLite (offline) · FCM/APNs
+<p>
+  <img alt="Android" src="https://img.shields.io/badge/Android-ready-39D98A?style=flat-square&logo=android&logoColor=white&labelColor=151518" />
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-ready-39D98A?style=flat-square&logo=apple&logoColor=white&labelColor=151518" />
+  <img alt="Works offline" src="https://img.shields.io/badge/works-offline-7CFF6B?style=flat-square&labelColor=151518" />
+  <img alt="Currency" src="https://img.shields.io/badge/currency-%E2%82%B9%20INR-F5B942?style=flat-square&labelColor=151518" />
+  <img alt="Built with Flutter" src="https://img.shields.io/badge/built%20with-Flutter-54C5F8?style=flat-square&logo=flutter&logoColor=white&labelColor=151518" />
+</p>
 
-- Implementation plan and decisions: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)
-- Supabase setup (free tier): [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
-- Backend reference (tables, RPCs, Edge Function, error codes, tests): [docs/BACKEND.md](docs/BACKEND.md)
+<br />
 
-## Prerequisites
-- Flutter (stable), Xcode + CocoaPods (iOS), Android SDK + Java 17 (Android)
-- Supabase CLI: `brew install supabase/tap/supabase`, or run it without installing via `npx supabase …`
+<img src=".github/readme/dashboard.png" width="250" alt="Dashboard" />
+&nbsp;&nbsp;
+<img src=".github/readme/expenses.png" width="250" alt="Expenses" />
+&nbsp;&nbsp;
+<img src=".github/readme/add_expense.png" width="250" alt="Add an expense" />
 
-## Configuration
-Only **public** client values ship in the app. They're passed at build time:
+</div>
 
-```bash
-cp env/example.json env/dev.json     # env/*.json is git-ignored (except example.json)
-# fill in SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY
-```
+<br />
 
-Never put the Supabase secret/service-role key, database password, Firebase service account or signing keys in `env/*.json` or anywhere in this repository.
+## Why Hisaably?
 
-## Run
-```bash
-flutter pub get
-flutter run --dart-define-from-file=env/dev.json
-```
-If you run without the env file, the app starts but doesn't connect to Supabase (useful for UI-only work).
+Flatmates, a family running a household, friends on a trip, a club with a kitty: any group that shares money ends up asking the same questions.
 
-## Checks
-```bash
-scripts/run_all_checks.sh         # everything below except device flows
-dart format lib test
-flutter analyze
-flutter test                      # unit + widget tests (live tests are skipped)
-scripts/run_live_tests.sh         # Flutter tests against the dev backend (throwaway users)
-supabase/tests/e2e/run_admin_users_e2e.sh   # admin-users Edge Function end-to-end
-npx supabase db query --linked -f supabase/tests/smoke/<suite>.sql   # SQL suites (always rolled back)
-QA_ADMIN_PASSWORD=… QA_MEMBER_PASSWORD=… scripts/run_device_flows.sh <device-id>   # UI flows on a simulator/emulator
-QA_MEMBER_PASSWORD=… scripts/run_perf.sh <android-device-id>   # profile-mode frame timings → build/perf/
-```
-Live runners fetch the dev project's keys with your Supabase CLI login and keep them in memory only (`scripts/with_dev_keys.sh`).
+> *"Did anyone pay the electricity bill?"*
+> *"How much is left in the pool?"*
+> *"Who added this ₹3,000? What was it for?"*
 
-## Signing in
-Users sign in with a **username** and password created by the Super Admin (there is no public sign-up and no email). The first Super Admin is bootstrapped once, as described in docs/SUPABASE_SETUP.md §7.
+The answers usually live in a WhatsApp thread, someone's notes app and a spreadsheet that's three weeks out of date. Nobody is sure what the balance is, and that's how small money turns into big arguments.
 
-## Project structure
-```
-lib/
-  core/        config, constants, theme (color tokens), errors, utils, shared widgets
-  features/    auth, dashboard, expenses, income, groups, users, notifications, settings, transactions
-  routing/     GoRouter config, bottom-nav shell, route paths
-supabase/      migrations, SQL smoke/perf tests, Edge Functions (admin-users, send-push)
-docs/          plan, setup guides
-```
-Layering: UI → Riverpod provider/controller → Repository → local (Drift) / remote (Supabase) data source. Widgets never call Supabase directly.
+**Hisaably keeps one honest ledger that the whole group can see.** Money goes into the group and is spent from the group. Everyone adds what they pay or receive in a few seconds, and everyone sees the same balance, live. No more chasing, guessing or end-of-month "let me check".
 
-## Key rules
-- Transactions belong to the group and have no `created_by` / `user_id` / `member_id`.
-- Money is `NUMERIC(14,2)` on the server and integer paise on the client, never floating point.
-- The server (RLS, RPC, Edge Functions) is authoritative for every permission and business rule; UI checks are only for user experience.
-- Months are evaluated in Asia/Kolkata; future-dated transactions are rejected.
+<br />
 
-## Offline and sync
-- Adding income/expense works fully offline: the entry is saved in SQLite (Drift) with an outbox record and shows as **Pending**; editing or deleting a synced entry needs a connection.
-- The sync engine (`lib/core/sync/`) sends the outbox when the server is actually reachable (health check, not just "has Wi-Fi") on: app start, resume, network regained, "Sync now", and, while the app is open, at the next backoff time after a server error. There is no polling.
-- Sends are idempotent (client-generated UUIDs), so retries never duplicate. Rejected entries show **Not synced** with the reason, plus Retry/Discard.
-- Background sync (Android WorkManager / iOS BGTaskScheduler) is best effort only. It never refreshes auth tokens.
+## How it works
 
-## Notifications
-- The server creates notification rows after a committed write, for the other active members of the group (never the actor).
-- A trigger asks the `send-push` Edge Function (FCM HTTP v1) to deliver them, via pg_net after commit. Configure with `scripts/configure_push_dispatch.sh [firebase-service-account.json]`; without the service account, in-app notifications still work.
-- Monthly processing (`pg_cron`, 00:05 IST on the 1st) refreshes `monthly_summaries` and sends one "New Month Started" notification per member. It's idempotent; re-run a missed month with `select public.run_monthly_processing('YYYY-MM-01');`.
+<table>
+<tr>
+<td width="33%" valign="top">
 
-## Release builds
-```bash
-flutter build appbundle --release --dart-define-from-file=env/prod.json
-flutter build ipa --release --dart-define-from-file=env/prod.json      # needs a paid Apple Developer team
-```
-Android release signing uses `android/key.properties` + an upload keystore (both git-ignored); until that is set up, release builds are debug-signed.
+### 1 · Join your group
+Your group's admin adds you. Sign in with your username, and your group's dashboard is ready. No sign-up forms, no email verification.
+
+</td>
+<td width="33%" valign="top">
+
+### 2 · Add as you go
+Tap **+**, enter the amount, pick a category, done. The date is today by default, and you can backdate a missed entry.
+
+</td>
+<td width="33%" valign="top">
+
+### 3 · Everyone stays in sync
+The others get a notification, the balance updates for everyone, and the month closes and carries forward automatically.
+
+</td>
+</tr>
+</table>
+
+<br />
+
+## Features
+
+### A dashboard that answers "where do we stand?"
+
+<table>
+<tr>
+<td width="55%" valign="middle">
+
+- **Current balance** at a glance, with the month's opening and closing.
+- **This month's income and expense**, side by side.
+- **Spending by category**: see where the money actually goes.
+- **Income vs expense** for the last six months.
+- **Balance trend**: is the pool growing or shrinking?
+- **Recent entries**, one tap from the full list.
+- Flip back through **past months**. Each one opens with the previous month's closing balance, with no manual carry-forward.
+
+</td>
+<td width="45%" align="center">
+<img src=".github/readme/dashboard_charts.png" width="210" alt="Charts" />
+&nbsp;
+<img src=".github/readme/dashboard_more.png" width="210" alt="Balance trend and recent entries" />
+</td>
+</tr>
+</table>
+
+### Adding an entry takes seconds
+
+<table>
+<tr>
+<td width="45%" align="center">
+<img src=".github/readme/plus_sheet.png" width="210" alt="Add expense or income" />
+&nbsp;
+<img src=".github/readme/add_expense.png" width="210" alt="Add expense form" />
+</td>
+<td width="55%" valign="middle">
+
+- One **+** button, always in reach: **Add Expense** or **Add Income**.
+- **Categories made for your group**: Rent, Groceries, Utilities and more. Need something new, like *House help*? Choose **Other**, type it, and it's added for your group.
+- **Backdate** a forgotten entry. Future dates are blocked, so the books stay honest.
+- An optional note, so the whole group knows what it was for.
+
+</td>
+</tr>
+</table>
+
+### A clear, searchable ledger
+
+<table>
+<tr>
+<td width="55%" valign="middle">
+
+- Separate **Expenses** and **Income** lists, grouped by day ("Today", "Yesterday", …).
+- **Totals for the month** right on top.
+- **Filters** by category, amount range or all time.
+- Tap any entry for its details. Admins can **edit** or **delete** mistakes, and deleted entries are kept in the records instead of disappearing.
+- Long histories load smoothly page by page, even with years of entries.
+
+</td>
+<td width="45%" align="center">
+<img src=".github/readme/expenses.png" width="210" alt="Expenses list" />
+&nbsp;
+<img src=".github/readme/entry_detail.png" width="210" alt="Entry details" />
+</td>
+</tr>
+</table>
+
+### Everyone is in the loop
+
+<table>
+<tr>
+<td width="45%" align="center">
+<img src=".github/readme/notifications.png" width="210" alt="Notifications" />
+&nbsp;
+<img src=".github/readme/member_income.png" width="210" alt="Income list" />
+</td>
+<td width="55%" valign="middle">
+
+- When someone adds an entry, **everyone else in the group gets a notification**: *"Expense Added · ₹850 · Food · 26 Sep"*.
+- On the **1st of every month**: *"New Month Started"*, with last month's closing and this month's opening balance.
+- Tap a notification to jump straight to that entry.
+- An unread badge on the bell, and **Mark all read** when you've caught up.
+
+</td>
+</tr>
+</table>
+
+### Works without internet
+
+No signal in the lift, or on a trip in the hills? **Keep adding entries.** They're saved on your phone straight away and marked *Pending*. When you're back online, they sync by themselves. Entries are never duplicated, and entries added offline on two different phones both make it in.
+
+### Groups with clear roles
+
+<table>
+<tr>
+<td width="55%" valign="middle">
+
+Each group has **up to 10 active members** and a simple role system:
+
+| | **Member** | **Group Admin** |
+|---|:---:|:---:|
+| See the dashboard, ledger and charts | ✅ | ✅ |
+| Add income and expenses | ✅ | ✅ |
+| Get notifications | ✅ | ✅ |
+| Edit or delete entries | | ✅ |
+| Rename and tidy up categories | | ✅ |
+| Rename the group | | ✅ |
+| Enable or disable members | | ✅ |
+
+Money belongs to **the group**, not to any one person. Entries record *what* happened, not *who typed it*, so there's no "your expense vs my expense". It's the group's hisaab.
+
+</td>
+<td width="45%" align="center">
+<img src=".github/readme/group.png" width="210" alt="Group members" />
+&nbsp;
+<img src=".github/readme/categories.png" width="210" alt="Categories" />
+</td>
+</tr>
+</table>
+
+### Private by design
+
+- **Invite-only.** There's no public sign-up; every account is created for its owner.
+- **Your group's data is visible only to your group.** The server enforces this for every request, not just the app.
+- **Passwords are never visible** to anyone, not even admins. If you forget yours, an admin sets a new one.
+- Every amount is stored exactly, to the paisa.
+
+<br />
+
+## A closer look
+
+<div align="center">
+
+<img src=".github/readme/sign_in.png" width="200" alt="Sign in" />
+&nbsp;
+<img src=".github/readme/member_dashboard.png" width="200" alt="Member dashboard" />
+&nbsp;
+<img src=".github/readme/dashboard_charts.png" width="200" alt="Charts" />
+&nbsp;
+<img src=".github/readme/notifications.png" width="200" alt="Notifications" />
+
+<sub>Screens show a sample group, "Flat 4B", with made-up people and numbers.</sub>
+
+</div>
+
+<br />
+
+## Want to use Hisaably?
+
+Hisaably is **invite-only**, for groups we set up personally.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+#### 📱 Android
+A ready-to-install **APK** is available on request.
+
+</td>
+<td width="50%" valign="top">
+
+#### 🍎 iPhone
+Installed for you on request.
+
+</td>
+</tr>
+</table>
+
+**To get your group set up or to get the Android APK, write to:**
+
+<div align="center">
+
+### ✉️ [vcax99@gmail.com](mailto:vcax99@gmail.com?subject=Hisaably%20%E2%80%94%20access%20request)
+
+<sub>Tell us your group's name and how many people will use it.</sub>
+
+</div>
+
+<br />
+
+<br />
+
+<div align="center">
+<sub>Made with care by <b>Bikash</b></sub>
+</div>
