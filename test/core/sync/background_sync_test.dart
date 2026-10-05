@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hisaably/core/sync/background_sync.dart';
+import 'package:hisaably/core/sync/sync_bootstrap.dart';
 
 void main() {
   final now = DateTime.utc(2026, 10, 1, 12);
@@ -39,11 +40,12 @@ void main() {
     BackgroundSkip? check({
       bool configured = true,
       PersistedSession? session,
-      String? owner = 'u1',
+      String? owner,
+      bool noOwner = false,
     }) => backgroundPreconditions(
       configured: configured,
       session: session,
-      localOwner: owner,
+      localOwner: noOwner ? null : owner ?? localOwnerId('u1'),
       now: now,
     );
 
@@ -62,6 +64,19 @@ void main() {
       check(session: valid, owner: 'someone-else'),
       BackgroundSkip.otherUser,
     );
-    expect(check(session: valid, owner: null), BackgroundSkip.otherUser);
+    expect(check(session: valid, noOwner: true), BackgroundSkip.otherUser);
+    expect(
+      check(
+        session: valid,
+        owner: localOwnerId('u1', backend: 'https://x'),
+      ),
+      BackgroundSkip.otherUser,
+      reason: 'same user id on another backend (dev vs prod)',
+    );
+    expect(
+      check(session: valid, owner: 'u1'),
+      BackgroundSkip.otherUser,
+      reason: 'value written before the owner included the backend',
+    );
   });
 }
