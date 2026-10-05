@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hisaably/core/theme/app_colors.dart';
 import 'package:hisaably/core/widgets/hisaably_logo.dart';
@@ -50,6 +51,60 @@ Future<void> _export(
     ..writeAsBytesSync(bytes!.buffer.asUint8List());
 }
 
+/// "POWERED BY / BIKASH" as an image for the native launch screens.
+Future<void> _exportCredit(String path) async {
+  for (final (family, file) in [
+    ('Orbitron', 'assets/fonts/Orbitron-Regular.ttf'),
+    ('Orbitron', 'assets/fonts/Orbitron-Bold.ttf'),
+  ]) {
+    final bytes = File(file).readAsBytesSync();
+    await (FontLoader(
+      family,
+    )..addFont(Future.value(ByteData.sublistView(bytes)))).load();
+  }
+  const width = 600.0;
+  const height = 180.0;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  void line(String text, TextStyle style, double y) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset((width - tp.width) / 2, y));
+  }
+
+  line(
+    'POWERED BY',
+    const TextStyle(
+      fontFamily: 'Orbitron',
+      fontSize: 26,
+      letterSpacing: 7,
+      color: AppColors.textMuted,
+    ),
+    20,
+  );
+  line(
+    'BIKASH',
+    const TextStyle(
+      fontFamily: 'Orbitron',
+      fontWeight: FontWeight.w700,
+      fontSize: 48,
+      letterSpacing: 14,
+      color: AppColors.accent,
+    ),
+    70,
+  );
+  final image = await recorder.endRecording().toImage(
+    width.toInt(),
+    height.toInt(),
+  );
+  final png = await image.toByteData(format: ui.ImageByteFormat.png);
+  File(path)
+    ..createSync(recursive: true)
+    ..writeAsBytesSync(png!.buffer.asUint8List());
+}
+
 void main() {
   final enabled = Platform.environment['EXPORT_BRANDING'] == '1';
 
@@ -81,6 +136,7 @@ void main() {
         1152,
         markScale: 0.7,
       );
+      await _exportCredit('assets/branding/branding.png');
       // Previews of both currency options (not used by the build).
       await _export(
         'build/branding/preview_rupee.png',

@@ -101,6 +101,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               children: [
                 _Welcome(name: profile?.name),
+                // Super Admin: users/groups counts first, then the group
+                // picker, the month switcher and the money.
+                if (isSuperAdmin) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  const _AdminOverviewRow(),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 _Selectors(
                   groups: list,
@@ -111,10 +117,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   onGroup: (id) => setState(() => _selection = id),
                   onMonth: (m) => setState(() => _month = m),
                 ),
-                if (isSuperAdmin) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  const _AdminOverviewRow(),
-                ],
                 const SizedBox(height: AppSpacing.md),
                 _DashboardBody(
                   dashboardKey: key,
