@@ -17,8 +17,14 @@ import 'outbox_processor.dart';
 import 'sync_engine.dart';
 import '../network/supabase_providers.dart';
 
-/// Local data belongs to one signed-in user on this device.
+/// Local data belongs to one signed-in user of one backend on this device.
 const localOwnerKey = 'local.owner_user_id';
+
+/// What [localOwnerKey] holds. Includes the backend: a user can have the same
+/// id in dev and prod (migrated accounts), and a dev cache or queue must
+/// never reach prod when a device switches builds.
+String localOwnerId(String userId, {String backend = Env.supabaseUrl}) =>
+    '$backend|$userId';
 
 /// Whether the local database/sync runs (off in widget tests, where Supabase
 /// isn't configured and fakes replace the repositories; tests may override).
@@ -31,10 +37,11 @@ Future<void> onSignedIn(WidgetRef ref, String userId) async {
   try {
     final prefs = ref.read(sharedPreferencesProvider);
     final owner = prefs.getString(localOwnerKey);
-    if (owner != null && owner != userId) {
+    final me = localOwnerId(userId);
+    if (owner != null && owner != me) {
       await ref.read(appDatabaseProvider).clearAll();
     }
-    await prefs.setString(localOwnerKey, userId);
+    await prefs.setString(localOwnerKey, me);
     unawaited(syncNow(ref, trigger: SyncTrigger.startup));
     unawaited(_warmCaches(ref));
     unawaited(registerPush(ref));

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/env.dart';
 import '../../../core/errors/error_mapper.dart';
 import '../../../core/network/supabase_providers.dart';
 import '../domain/user_context.dart';
@@ -89,7 +90,8 @@ class SupabaseAuthRepository implements AuthRepository {
 class UserContextCache {
   UserContextCache(this._prefs);
 
-  static const _key = 'auth.user_context.v1';
+  /// Per backend: the same user id can exist in dev and prod.
+  static const _key = 'auth.user_context.v1@${Env.supabaseUrl}';
   final SharedPreferences _prefs;
 
   UserContext? load(String userId) {

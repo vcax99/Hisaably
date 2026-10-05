@@ -112,7 +112,9 @@ BackgroundSkip? backgroundPreconditions({
   if (session == null) return BackgroundSkip.noSession;
   if (!session.isValidAt(now)) return BackgroundSkip.tokenExpired;
   // Local data must belong to the signed-in user (it's wiped on switch).
-  if (localOwner != session.userId) return BackgroundSkip.otherUser;
+  if (localOwner != localOwnerId(session.userId)) {
+    return BackgroundSkip.otherUser;
+  }
   return null;
 }
 
