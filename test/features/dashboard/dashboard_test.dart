@@ -235,6 +235,20 @@ void main() {
       dashboard: repo,
     );
     expect(find.byKey(const Key('group-dropdown')), findsOneWidget);
+    // Super Admin order: counts → group picker → month → money.
+    double top(Finder f) => tester.getTopLeft(f).dy;
+    expect(
+      top(find.descendant(of: find.byType(Card), matching: find.text('Users'))),
+      lessThan(top(find.byKey(const Key('group-dropdown')))),
+    );
+    expect(
+      top(find.byKey(const Key('group-dropdown'))),
+      lessThan(top(find.byTooltip('Previous month'))),
+    );
+    expect(
+      top(find.byTooltip('Previous month')),
+      lessThan(top(find.text('Combined balance'))),
+    );
     expect(find.text('Combined balance'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const Key('by-group')),

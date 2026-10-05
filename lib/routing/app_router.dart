@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -121,19 +123,36 @@ GoRoute _route(
   routes: routes,
 );
 
+/// Minimum time on the start-up screen (zero in tests, see
+/// test/flutter_test_config.dart).
+Duration splashMinimumDuration = const Duration(seconds: 3);
+
 /// Role-based routing: session → profile → role → status → memberships
 /// (see [sessionRedirect]). Re-evaluated whenever the session changes.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(sessionControllerProvider, (_, _) => refresh.value++);
 
+  // Keep the start-up screen (logo, slogan, credit) up long enough to be
+  // seen, even when the session resolves instantly.
+  var holdSplash = splashMinimumDuration > Duration.zero;
+  final splashTimer = holdSplash
+      ? Timer(splashMinimumDuration, () {
+          holdSplash = false;
+          refresh.value++;
+        })
+      : null;
+
   final router = GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: refresh,
-    redirect: (_, state) => sessionRedirect(
-      ref.read(sessionControllerProvider),
-      state.matchedLocation,
-    ),
+    redirect: (_, state) {
+      if (holdSplash && state.matchedLocation == Routes.splash) return null;
+      return sessionRedirect(
+        ref.read(sessionControllerProvider),
+        state.matchedLocation,
+      );
+    },
     routes: [
       _route(Routes.splash, (_) => const SplashScreen()),
       _route(Routes.login, (_) => const LoginScreen()),
@@ -198,6 +217,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
   ref.onDispose(() {
+    splashTimer?.cancel();
     router.dispose();
     refresh.dispose();
   });

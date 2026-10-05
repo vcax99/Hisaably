@@ -124,10 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Your group money, together.',
-                        style: textTheme.bodyMedium,
-                      ),
+                      Text(AppConstants.tagline, style: textTheme.bodyMedium),
                       const SizedBox(height: AppSpacing.xxl),
                       TextFormField(
                         controller: _usernameController,

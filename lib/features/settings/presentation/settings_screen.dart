@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_version.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/push/push_bootstrap.dart';
 import '../../../core/sync/sync_bootstrap.dart';
@@ -123,7 +124,11 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
-            '${AppConstants.appName} · by ${AppConstants.author}',
+            [
+              AppConstants.appName,
+              ?ref.watch(appVersionProvider).value,
+              'by ${AppConstants.author}',
+            ].join(' · '),
             style: textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.13.4
@@ -49,6 +49,7 @@ dependencies:
   workmanager: ^0.10.10
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:
@@ -92,6 +93,11 @@ flutter:
         - asset: assets/fonts/Sora-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/Sora-Bold.ttf
+          weight: 700
+    - family: Orbitron # only for the "Powered by BIKASH" credit
+      fonts:
+        - asset: assets/fonts/Orbitron-Regular.ttf
+        - asset: assets/fonts/Orbitron-Bold.ttf
           weight: 700
     - family: Manrope
       fonts:
@@ -149,8 +155,11 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#0B0B0D"
   image: assets/branding/splash.png
+  branding: assets/branding/branding.png
+  branding_mode: bottom
   android_12:
     color: "#0B0B0D"
     image: assets/branding/splash_android12.png
     icon_background_color: "#0B0B0D"
+    branding: assets/branding/branding.png
   fullscreen: false

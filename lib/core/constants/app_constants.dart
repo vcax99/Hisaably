@@ -2,6 +2,9 @@ abstract final class AppConstants {
   static const appName = 'Hisaably';
   static const author = 'Bikash';
 
+  /// Slogan under the logo (start-up and sign-in screens).
+  static const tagline = 'Saaf hisaab, pakki dosti.';
+
   /// Maximum ACTIVE members per group. The server enforces this; the client
   /// copy is only for UX (disabling buttons, showing counts).
   static const maxActiveMembersPerGroup = 10;

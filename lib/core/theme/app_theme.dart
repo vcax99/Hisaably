@@ -7,6 +7,9 @@ import 'app_spacing.dart';
 abstract final class AppFonts {
   static const display = 'Sora';
   static const body = 'Manrope';
+
+  /// Only the start-up credit ("Powered by BIKASH"), to set it apart.
+  static const brand = 'Orbitron';
 }
 
 abstract final class AppTheme {

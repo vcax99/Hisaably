@@ -6,6 +6,7 @@ import '../../../core/errors/app_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/hisaably_logo.dart';
+import '../../../core/widgets/powered_by.dart';
 import '../application/session_controller.dart';
 
 /// Shown while the session is being resolved, or when it couldn't be resolved
@@ -21,50 +22,72 @@ class SplashScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const HisaablyLogo(size: 112, buildIn: true),
-                const SizedBox(height: AppSpacing.lg),
-                Text(AppConstants.appName, style: textTheme.displaySmall),
-                const SizedBox(height: AppSpacing.xl),
-                if (error == null)
-                  const SizedBox.square(
-                    dimension: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  )
-                else ...[
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    color: AppColors.textMuted,
-                    size: 36,
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const HisaablyLogo(size: 112, buildIn: true),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(AppConstants.appName, style: textTheme.displaySmall),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        AppConstants.tagline,
+                        key: const Key('tagline'),
+                        style: textTheme.titleMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      if (error == null)
+                        const SizedBox.square(
+                          dimension: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      else ...[
+                        const Icon(
+                          Icons.cloud_off_rounded,
+                          color: AppColors.textMuted,
+                          size: 36,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          error is AppFailure
+                              ? error.message
+                              : const UnexpectedFailure().message,
+                          style: textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        FilledButton(
+                          onPressed: () =>
+                              ref.invalidate(sessionControllerProvider),
+                          child: const Text('Try again'),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextButton(
+                          onPressed: () => ref
+                              .read(sessionControllerProvider.notifier)
+                              .signOut(),
+                          child: const Text('Sign out'),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    error is AppFailure
-                        ? error.message
-                        : const UnexpectedFailure().message,
-                    style: textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  FilledButton(
-                    onPressed: () => ref.invalidate(sessionControllerProvider),
-                    child: const Text('Try again'),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextButton(
-                    onPressed: () =>
-                        ref.read(sessionControllerProvider.notifier).signOut(),
-                    child: const Text('Sign out'),
-                  ),
-                ],
-              ],
+                ),
+              ),
             ),
-          ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.xl),
+              child: PoweredBy(),
+            ),
+          ],
         ),
       ),
     );

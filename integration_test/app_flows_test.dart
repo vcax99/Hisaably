@@ -67,6 +67,24 @@ void main() {
     throw TestFailure('Timed out waiting for $finder to disappear');
   }
 
+  /// With several groups the form asks which one first (nothing is added to
+  /// a group by accident); the flow always records into QA Roomies.
+  Future<void> pickQaRoomiesIfAsked(WidgetTester tester) async {
+    await waitFor(
+      tester,
+      find.byWidgetPredicate(
+        (w) =>
+            (w is Text && w.data == 'Choose a group first') ||
+            (w is ChoiceChip),
+      ),
+    );
+    if (find.text('Choose a group first').evaluate().isEmpty) return;
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('QA Roomies').last);
+    await tester.pumpAndSettle();
+  }
+
   Finder nav(String label) => find.byKey(ValueKey('nav-$label'));
 
   Future<void> login(WidgetTester tester, String user, String password) async {
@@ -126,7 +144,8 @@ void main() {
     await login(tester, 'qa_member', _memberPassword);
     await waitFor(tester, nav('Expenses'));
     expect(nav('Users'), findsNothing);
-    await waitFor(tester, find.text('Current balance'));
+    // "Current balance" (one group) or "Combined balance" (several).
+    await waitFor(tester, find.textContaining('balance'));
     await shot(tester, '03_member_home');
     // Phase 8: charts below the fold.
     await tester.scrollUntilVisible(
@@ -176,7 +195,7 @@ void main() {
     expect(find.byKey(const Key('unread-dot')), findsNothing);
     // Tapping a monthly notification opens the Dashboard.
     await tester.tap(find.textContaining('New Month Started').first);
-    await waitFor(tester, find.text('Current balance'));
+    await waitFor(tester, find.textContaining('balance'));
     await waitForGone(
       tester,
       find.byWidgetPredicate((w) => w is Badge && w.isLabelVisible),
@@ -187,6 +206,7 @@ void main() {
     await waitFor(tester, find.text('Add Income'));
     await shot(tester, '05_plus_sheet');
     await tester.tap(find.text('Add Expense'));
+    await pickQaRoomiesIfAsked(tester);
     await waitFor(tester, find.widgetWithText(ChoiceChip, 'Food'));
     final note =
         'device-flow ${DateTime.now().millisecondsSinceEpoch % 100000}';
@@ -300,6 +320,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Add transaction'));
     await waitFor(tester, find.text('Add Expense'));
     await tester.tap(find.text('Add Expense'));
+    await pickQaRoomiesIfAsked(tester);
     await waitFor(tester, find.widgetWithText(ChoiceChip, 'Food'));
     await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '12');
     await tester.tap(find.widgetWithText(ChoiceChip, 'Food'));
