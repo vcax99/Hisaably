@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_spacing.dart';
 
+/// Bundled font families (see pubspec.yaml).
+abstract final class AppFonts {
+  static const display = 'Sora';
+  static const body = 'Manrope';
+}
+
 abstract final class AppTheme {
   static ThemeData dark() {
     const colorScheme = ColorScheme.dark(
@@ -20,9 +26,9 @@ abstract final class AppTheme {
       onError: AppColors.textPrimary,
     );
 
-    // Platform typography (Roboto on Android, San Francisco on iOS) with our
-    // sizes/colours on top. Every other style below derives from this, so no
-    // text ever ends up without a font family.
+    // Material 2021 metrics with our fonts, sizes and colours on top: Sora
+    // for display/headline/title text (and big amounts), Manrope for body
+    // and labels. Every other style below derives from this.
     const overrides = TextTheme(
       displaySmall: TextStyle(
         fontSize: 32,
@@ -51,7 +57,21 @@ abstract final class AppTheme {
       labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       labelSmall: TextStyle(fontSize: 11, color: AppColors.textMuted),
     );
-    final textTheme = Typography.material2021().white.merge(overrides);
+    final base = Typography.material2021().white
+        .merge(overrides)
+        .apply(fontFamily: AppFonts.body);
+    TextStyle? display(TextStyle? t) =>
+        t?.copyWith(fontFamily: AppFonts.display);
+    final textTheme = base.copyWith(
+      displayLarge: display(base.displayLarge),
+      displayMedium: display(base.displayMedium),
+      displaySmall: display(base.displaySmall),
+      headlineLarge: display(base.headlineLarge),
+      headlineMedium: display(base.headlineMedium),
+      headlineSmall: display(base.headlineSmall),
+      titleLarge: display(base.titleLarge),
+      titleMedium: display(base.titleMedium),
+    );
     final buttonText = textTheme.labelLarge!.copyWith(fontSize: 16);
 
     final roundedBorder = OutlineInputBorder(
@@ -63,12 +83,17 @@ abstract final class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.background,
+      // Every page paints its own backdrop (near-black + waves), see
+      // _page in routing/app_router.dart; scaffolds stay see-through.
+      scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: AppColors.background,
       textTheme: textTheme,
+      fontFamily: AppFonts.body,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       splashFactory: InkRipple.splashFactory,
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -168,6 +193,8 @@ abstract final class AppTheme {
           color: AppColors.textPrimary,
         ),
         behavior: SnackBarBehavior.floating,
+        // Default action color is dark-on-dark here.
+        actionTextColor: AppColors.accent,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.accent,

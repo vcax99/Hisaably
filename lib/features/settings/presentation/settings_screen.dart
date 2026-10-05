@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/push/push_bootstrap.dart';
+import '../../../core/sync/sync_bootstrap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../auth/application/session_controller.dart';
@@ -13,13 +15,20 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final unsynced = await unsyncedCount(ref);
+    if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.elevated,
         title: const Text('Sign out?'),
-        content: const Text(
-          'You will need your username and password to sign in again.',
+        content: Text(
+          unsynced > 0
+              ? '$unsynced ${unsynced == 1 ? 'entry has' : 'entries have'} '
+                    'not synced yet and will be lost if you sign out now. '
+                    'Connect to the internet and sync first to keep '
+                    '${unsynced == 1 ? 'it' : 'them'}.'
+              : 'You will need your username and password to sign in again.',
         ),
         actions: [
           TextButton(
@@ -35,6 +44,9 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
     if (confirmed ?? false) {
+      // Clear first: once signed out this screen (and its ref) is gone.
+      await unregisterPush(ref); // still authenticated here
+      await clearLocalData(ref);
       await ref.read(sessionControllerProvider.notifier).signOut();
     }
   }

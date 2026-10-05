@@ -86,6 +86,18 @@ void main() {
     });
   });
 
+  test('zero rows for .single() -> not found', () {
+    expect(
+      mapError(
+        const PostgrestException(
+          message: 'Cannot coerce the result to a single JSON object',
+          code: 'PGRST116',
+        ),
+      ),
+      isA<NotFoundFailure>(),
+    );
+  });
+
   test('edge function error body', () {
     final f = mapError(
       const FunctionException(

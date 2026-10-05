@@ -53,7 +53,7 @@ class SupabaseUsersRepository implements UsersRepository {
 
   @override
   Future<List<AppUser>> listUsers() => _guard(() async {
-    final rows = await _client
+    final rows = await _client.rest
         .from('profiles')
         .select(_columns)
         .order('name', ascending: true);
@@ -64,7 +64,7 @@ class SupabaseUsersRepository implements UsersRepository {
 
   @override
   Future<AppUser> getUser(String userId) => _guard(() async {
-    final row = await _client
+    final row = await _client.rest
         .from('profiles')
         .select(_columns)
         .eq('id', userId)
@@ -75,7 +75,7 @@ class SupabaseUsersRepository implements UsersRepository {
   @override
   Future<List<UserMembership>> listMemberships(String userId) =>
       _guard(() async {
-        final rows = await _client
+        final rows = await _client.rest
             .from('group_members')
             .select('group_id, group_role, status, group:groups(name, status)')
             .eq('user_id', userId);

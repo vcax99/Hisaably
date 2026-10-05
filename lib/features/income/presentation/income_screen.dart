@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/widgets/placeholder_screen.dart';
+import '../../notifications/presentation/notification_bell.dart';
+import '../../transactions/domain/transaction.dart';
+import '../../transactions/presentation/transactions_view.dart';
 
+/// Member shell → Income tab.
 class IncomeScreen extends StatelessWidget {
   const IncomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const PlaceholderScreen(
-      title: 'Income',
-      icon: Icons.savings_outlined,
-      message: 'Group income with filters will appear here.',
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Income'),
+        actions: const [NotificationBell()],
+      ),
+      body: const TransactionsView(type: TransactionType.income),
     );
   }
 }

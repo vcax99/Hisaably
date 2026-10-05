@@ -63,3 +63,6 @@ service-account*.json
 # Supabase CLI local state
 supabase/.temp/
 supabase/.branches/
+
+# Local credential files (Firebase service account, etc.) — never commit
+secrets/

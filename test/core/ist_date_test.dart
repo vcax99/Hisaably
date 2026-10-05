@@ -25,4 +25,14 @@ void main() {
   test('toIsoDate pads month and day', () {
     expect(IstDate.toIsoDate(DateTime(2026, 9, 5)), '2026-09-05');
   });
+
+  test('parseDate gives a UTC calendar date comparable with today()', () {
+    final d = IstDate.parseDate('2026-10-01');
+    expect(d.isUtc, isTrue);
+    expect(d, DateTime.utc(2026, 10, 1));
+    expect(
+      IstDate.parseDate(IstDate.toIsoDate(IstDate.today())),
+      IstDate.today(),
+    );
+  });
 }

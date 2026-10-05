@@ -58,4 +58,26 @@ abstract final class Money {
     final paise = rupees * 100 + fraction;
     return negative ? -paise : paise;
   }
+
+  /// Short Indian-unit label for chart axes: ₹950, ₹1.2K, ₹3.4L, ₹1.1Cr.
+  static String compact(int paise) {
+    final negative = paise < 0;
+    final rupees = paise.abs() / 100;
+    String text;
+    if (rupees >= 10000000) {
+      text = '${_trim(rupees / 10000000)}Cr';
+    } else if (rupees >= 100000) {
+      text = '${_trim(rupees / 100000)}L';
+    } else if (rupees >= 1000) {
+      text = '${_trim(rupees / 1000)}K';
+    } else {
+      text = rupees.round().toString();
+    }
+    return '${negative ? '-' : ''}₹$text';
+  }
+
+  static String _trim(double v) {
+    final s = v >= 100 ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+    return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+  }
 }

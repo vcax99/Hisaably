@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/hisaably_logo.dart';
 import '../application/session_controller.dart';
 
 /// Shown while the session is being resolved, or when it couldn't be resolved
@@ -26,6 +27,8 @@ class SplashScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const HisaablyLogo(size: 112, buildIn: true),
+                const SizedBox(height: AppSpacing.lg),
                 Text(AppConstants.appName, style: textTheme.displaySmall),
                 const SizedBox(height: AppSpacing.xl),
                 if (error == null)

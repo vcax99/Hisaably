@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/error_mapper.dart';
 import '../../../core/network/supabase_providers.dart';
+import '../../../core/sync/cache_store.dart';
 import '../domain/group.dart';
 
 /// Groups and memberships. Reads are RLS-filtered selects (a member only
@@ -39,9 +40,12 @@ abstract interface class GroupsRepository {
 }
 
 class SupabaseGroupsRepository implements GroupsRepository {
-  SupabaseGroupsRepository(this._client);
+  SupabaseGroupsRepository(this._client, [this._cache]);
 
   final SupabaseClient _client;
+
+  /// Last responses, so group screens still open offline (null in tests).
+  final CacheStore? _cache;
 
   static const _groupColumns = 'id, name, status, group_members(status)';
 
@@ -57,44 +61,55 @@ class SupabaseGroupsRepository implements GroupsRepository {
       _guard(() => _client.rpc<dynamic>(fn, params: params));
 
   @override
-  Future<List<Group>> listGroups() => _guard(() async {
-    final rows = await _client
+  Future<List<Group>> listGroups() => fetchWithCache(
+    _cache,
+    'groups.list',
+    () => _client.rest
         .from('groups')
         .select(_groupColumns)
-        .order('name', ascending: true);
-    return [for (final r in rows) Group.fromJson(r)]
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-  });
+        .order('name', ascending: true),
+    (raw, _) => [
+      for (final r in raw! as List) Group.fromJson((r as Map).cast()),
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())),
+  );
 
   @override
-  Future<Group> getGroup(String groupId) => _guard(() async {
-    final row = await _client
+  Future<Group> getGroup(String groupId) => fetchWithCache(
+    _cache,
+    'groups.$groupId',
+    () => _client.rest
         .from('groups')
         .select(_groupColumns)
         .eq('id', groupId)
-        .single();
-    return Group.fromJson(row);
-  });
+        .single(),
+    (raw, _) => Group.fromJson((raw! as Map).cast()),
+  );
 
   @override
-  Future<List<GroupMember>> listMembers(String groupId) => _guard(() async {
-    final rows = await _client
+  Future<List<GroupMember>> listMembers(String groupId) => fetchWithCache(
+    _cache,
+    'groups.$groupId.members',
+    () => _client.rest
         .from('group_members')
         .select(
           'user_id, group_role, status, joined_at, '
           'profile:profiles(name, username, status)',
         )
         .eq('group_id', groupId)
-        .order('joined_at', ascending: true);
-    final members = [for (final r in rows) GroupMember.fromJson(r)];
-    // Group Admins first, then active members, then by name.
-    members.sort((a, b) {
-      if (a.isGroupAdmin != b.isGroupAdmin) return a.isGroupAdmin ? -1 : 1;
-      if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
-    return members;
-  });
+        .order('joined_at', ascending: true),
+    (raw, _) {
+      final members = [
+        for (final r in raw! as List) GroupMember.fromJson((r as Map).cast()),
+      ];
+      // Group Admins first, then active members, then by name.
+      members.sort((a, b) {
+        if (a.isGroupAdmin != b.isGroupAdmin) return a.isGroupAdmin ? -1 : 1;
+        if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+      return members;
+    },
+  );
 
   @override
   Future<Group> createGroup(String name) => _guard(() async {
@@ -154,5 +169,8 @@ class SupabaseGroupsRepository implements GroupsRepository {
 }
 
 final groupsRepositoryProvider = Provider<GroupsRepository>(
-  (ref) => SupabaseGroupsRepository(ref.watch(supabaseClientProvider)),
+  (ref) => SupabaseGroupsRepository(
+    ref.watch(supabaseClientProvider),
+    ref.watch(cacheStoreProvider),
+  ),
 );

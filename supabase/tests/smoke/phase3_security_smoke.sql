@@ -389,7 +389,8 @@ begin
                            'require_active_user', 'require_super_admin', 'normalize_name',
                            'validate_transaction_fields', 'format_inr', 'ist_today',
                            'handle_new_auth_user', 'enforce_group_member_limit',
-                           'seed_group_categories', 'transactions_before_write', 'set_updated_at')
+                           'seed_group_categories', 'transactions_before_write', 'set_updated_at',
+                           'dispatch_push_notifications', 'run_monthly_processing')
              and has_function_privilege('authenticated', p.oid, 'EXECUTE')));
   if v_text is not null then raise exception 'FAIL 24b: over-exposed functions: %', v_text; end if;
   v_passed := v_passed + 1;

@@ -42,4 +42,15 @@ void main() {
       expect(Money.fromNumeric(850), 85000);
     });
   });
+
+  test('compact uses Indian units', () {
+    expect(Money.compact(95000), '₹950');
+    expect(Money.compact(120000), '₹1.2K');
+    expect(Money.compact(2000000), '₹20K');
+    expect(Money.compact(34000000), '₹3.4L');
+    expect(Money.compact(110000000), '₹11L');
+    expect(Money.compact(1100000000), '₹1.1Cr');
+    expect(Money.compact(-150000), '-₹1.5K');
+    expect(Money.compact(0), '₹0');
+  });
 }

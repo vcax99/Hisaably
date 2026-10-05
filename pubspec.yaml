@@ -39,6 +39,16 @@ dependencies:
   supabase_flutter: ^2.18.0
   intl: ^0.20.3
   shared_preferences: ^2.5.5
+  uuid: ^4.6.0
+  fl_chart: ^1.2.0
+  drift: ^2.35.1
+  drift_flutter: ^0.3.1
+  path_provider: ^2.1.6
+  connectivity_plus: ^7.3.1
+  http: ^1.6.0
+  workmanager: ^0.10.10
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +65,10 @@ dev_dependencies:
     sdk: flutter
   flutter_driver:
     sdk: flutter
+  drift_dev: ^2.35.1
+  build_runner: ^2.16.1
+  flutter_launcher_icons: ^0.14.0
+  flutter_native_splash: ^2.4.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -66,6 +80,28 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Sora (headings, amounts) + Manrope (body). Both SIL OFL 1.1, bundled so
+  # they work offline; licences in assets/fonts/OFL-*.txt.
+  fonts:
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora-Regular.ttf
+        - asset: assets/fonts/Sora-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Sora-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Sora-Bold.ttf
+          weight: 700
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Regular.ttf
+        - asset: assets/fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -97,3 +133,24 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Branding (logo drawn in lib/core/widgets/hisaably_logo.dart; PNGs exported
+# by test/tool/export_branding_test.dart). Regenerate with:
+#   dart run flutter_launcher_icons && dart run flutter_native_splash:create
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/icon.png
+  adaptive_icon_background: "#0B0B0D"
+  adaptive_icon_foreground: assets/branding/icon_foreground.png
+  remove_alpha_ios: true
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#0B0B0D"
+  image: assets/branding/splash.png
+  android_12:
+    color: "#0B0B0D"
+    image: assets/branding/splash_android12.png
+    icon_background_color: "#0B0B0D"
+  fullscreen: false

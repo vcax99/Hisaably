@@ -14,7 +14,11 @@ import '../features/income/presentation/income_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/settings/presentation/more_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/transactions/domain/transaction.dart';
+import '../features/transactions/presentation/categories_screen.dart';
+import '../features/transactions/presentation/group_transactions_screen.dart';
 import '../features/transactions/presentation/transaction_form_screen.dart';
+import '../core/widgets/wave_background.dart';
 import '../features/users/presentation/create_user_screen.dart';
 import '../features/users/presentation/user_detail_screen.dart';
 import '../features/users/presentation/users_screen.dart';
@@ -76,10 +80,45 @@ StatefulShellBranch _branch(
   routes: [
     GoRoute(
       path: path,
-      pageBuilder: (_, _) => NoTransitionPage(child: screen),
+      pageBuilder: (_, _) =>
+          NoTransitionPage(child: WaveBackdrop(child: screen)),
       routes: children,
     ),
   ],
+);
+
+/// Group detail plus its ledger and categories (used in both shells).
+GoRoute _groupDetailRoute() => _route(
+  ':groupId',
+  (state) => GroupDetailScreen(groupId: state.pathParameters['groupId']!),
+  routes: [
+    _route(
+      'transactions',
+      (state) =>
+          GroupTransactionsScreen(groupId: state.pathParameters['groupId']!),
+    ),
+    _route(
+      'categories',
+      (state) => CategoriesScreen(groupId: state.pathParameters['groupId']!),
+    ),
+  ],
+);
+
+/// Every page sits on the app backdrop (near-black + animated waves). Each
+/// page owns an opaque one, so transitions never show the page below.
+Page<void> _page(GoRouterState state, Widget child) => MaterialPage<void>(
+  key: state.pageKey,
+  child: WaveBackdrop(child: child),
+);
+
+GoRoute _route(
+  String path,
+  Widget Function(GoRouterState state) build, {
+  List<RouteBase> routes = const [],
+}) => GoRoute(
+  path: path,
+  pageBuilder: (_, state) => _page(state, build(state)),
+  routes: routes,
 );
 
 /// Role-based routing: session → profile → role → status → memberships
@@ -96,9 +135,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       state.matchedLocation,
     ),
     routes: [
-      GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
-      GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
-      GoRoute(path: Routes.settings, builder: (_, _) => const SettingsScreen()),
+      _route(Routes.splash, (_) => const SplashScreen()),
+      _route(Routes.login, (_) => const LoginScreen()),
+      _route(Routes.settings, (_) => const SettingsScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) =>
             AppShell(navigationShell: shell, tabs: _memberTabs),
@@ -109,14 +148,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           _branch(
             Routes.memberGroups,
             const GroupsScreen(),
-            children: [
-              GoRoute(
-                path: ':groupId',
-                builder: (_, state) => GroupDetailScreen(
-                  groupId: state.pathParameters['groupId']!,
-                ),
-              ),
-            ],
+            children: [_groupDetailRoute()],
           ),
         ],
       ),
@@ -128,24 +160,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           _branch(
             Routes.adminGroups,
             const AdminGroupsScreen(),
-            children: [
-              GoRoute(
-                path: ':groupId',
-                builder: (_, state) => GroupDetailScreen(
-                  groupId: state.pathParameters['groupId']!,
-                ),
-              ),
-            ],
+            children: [_groupDetailRoute()],
           ),
           _branch(
             Routes.adminUsers,
             const UsersScreen(),
             children: [
               // 'new' must come before ':userId'.
-              GoRoute(path: 'new', builder: (_, _) => const CreateUserScreen()),
-              GoRoute(
-                path: ':userId',
-                builder: (_, state) =>
+              _route('new', (_) => const CreateUserScreen()),
+              _route(
+                ':userId',
+                (state) =>
                     UserDetailScreen(userId: state.pathParameters['userId']!),
               ),
             ],
@@ -153,16 +178,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           _branch(Routes.adminMore, const MoreScreen()),
         ],
       ),
-      GoRoute(
-        path: Routes.notifications,
-        builder: (_, _) => const NotificationsScreen(),
-      ),
-      GoRoute(
-        path: Routes.addTransactionPattern,
-        builder: (_, state) => TransactionFormScreen(
-          isExpense: state.pathParameters['type'] != 'income',
+      _route(Routes.notifications, (_) => const NotificationsScreen()),
+      _route(
+        Routes.addTransactionPattern,
+        (state) => TransactionFormScreen(
+          type: state.pathParameters['type'] == 'income'
+              ? TransactionType.income
+              : TransactionType.expense,
+          initialGroupId: state.uri.queryParameters['group'],
         ),
       ),
+      _route(Routes.editTransaction, (state) {
+        final existing = state.extra as Transaction?;
+        return TransactionFormScreen(
+          type: existing?.type ?? TransactionType.expense,
+          existing: existing,
+        );
+      }),
     ],
   );
   ref.onDispose(() {

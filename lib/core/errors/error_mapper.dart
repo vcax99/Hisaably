@@ -81,6 +81,8 @@ AppFailure _mapPostgrest(PostgrestException e) {
   if (e.code == '42501' || e.code == 'PGRST301') {
     return const PermissionFailure();
   }
+  // `.single()` on zero rows (e.g. the record was deleted meanwhile).
+  if (e.code == 'PGRST116') return const NotFoundFailure();
   if (e.code == 'PGRST303' || e.code == 'PGRST302') {
     return const SessionExpiredFailure();
   }

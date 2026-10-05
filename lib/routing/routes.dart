@@ -26,5 +26,7 @@ abstract final class Routes {
   static const notifications = '/notifications';
 
   static const addTransactionPattern = '/transactions/new/:type';
-  static String addTransaction(String type) => '/transactions/new/$type';
+  static String addTransaction(String type, {String? groupId}) =>
+      '/transactions/new/$type${groupId == null ? '' : '?group=$groupId'}';
+  static const editTransaction = '/transactions/edit';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -244,6 +245,30 @@ class _GroupDetailBody extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text('Transactions'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(
+                    '${GoRouterState.of(context).uri.path}/transactions',
+                  ),
+                ),
+                if (perms.canRename)
+                  ListTile(
+                    leading: const Icon(Icons.sell_outlined),
+                    title: const Text('Categories'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push(
+                      '${GoRouterState.of(context).uri.path}/categories',
+                    ),
+                  ),
+              ],
             ),
           ),
           if (perms.canRename || perms.canChangeGroupStatus) ...[

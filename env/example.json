@@ -1,5 +1,9 @@
 {
   "APP_ENV": "dev",
   "SUPABASE_URL": "https://YOUR-PROJECT-REF.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_xxxxxxxxxxxxxxxxxxxx"
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_xxxxxxxxxxxxxxxxxxxx",
+  "FIREBASE_PROJECT_ID": "",
+  "FIREBASE_MESSAGING_SENDER_ID": "",
+  "FIREBASE_ANDROID_APP_ID": "",
+  "FIREBASE_ANDROID_API_KEY": ""
 }

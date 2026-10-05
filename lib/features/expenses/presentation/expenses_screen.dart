@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/widgets/placeholder_screen.dart';
+import '../../notifications/presentation/notification_bell.dart';
+import '../../transactions/domain/transaction.dart';
+import '../../transactions/presentation/transactions_view.dart';
 
+/// Member shell → Expenses tab.
 class ExpensesScreen extends StatelessWidget {
   const ExpensesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const PlaceholderScreen(
-      title: 'Expenses',
-      icon: Icons.receipt_long_outlined,
-      message: 'Group expenses with filters will appear here.',
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Expenses'),
+        actions: const [NotificationBell()],
+      ),
+      body: const TransactionsView(type: TransactionType.expense),
     );
   }
 }

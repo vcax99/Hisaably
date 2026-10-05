@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../../core/errors/app_failure.dart';
 import '../../../core/errors/error_mapper.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/hisaably_logo.dart';
 import '../application/session_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -23,6 +25,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   bool _busy = false;
   String? _error;
+
+  // Debug builds only: sign a simulator/emulator in from the command line,
+  // e.g. --dart-define=DEV_LOGIN_USER=qa_admin --dart-define=DEV_LOGIN_PASS=…
+  // Release/profile builds compile this away (kDebugMode is const false).
+  static const _devUser = String.fromEnvironment('DEV_LOGIN_USER');
+  static const _devPass = String.fromEnvironment('DEV_LOGIN_PASS');
+
+  /// Once per app launch, so signing out doesn't sign straight back in.
+  static bool _devLoginUsed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode &&
+        !_devLoginUsed &&
+        _devUser.isNotEmpty &&
+        _devPass.isNotEmpty) {
+      _devLoginUsed = true;
+      _usernameController.text = _devUser;
+      _passwordController.text = _devPass;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _submit();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -84,7 +111,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(AppConstants.appName, style: textTheme.displaySmall),
+                      Row(
+                        children: [
+                          const HisaablyLogo(size: 56, buildIn: true),
+                          const SizedBox(width: AppSpacing.md),
+                          Flexible(
+                            child: Text(
+                              AppConstants.appName,
+                              style: textTheme.displaySmall,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         'Your group money, together.',

@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Supabase API. Flutter's template only grants this to debug/profile
+         builds; release needs it here. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+: asked at first sign-in (push notifications). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Hisaably"
         android:name="${applicationName}"

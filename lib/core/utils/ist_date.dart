@@ -23,4 +23,12 @@ abstract final class IstDate {
     final day = d.day.toString().padLeft(2, '0');
     return '${d.year}-$m-$day';
   }
+
+  /// Parses a Postgres DATE ("2026-10-01") as a calendar date (UTC midnight),
+  /// the same representation [today] uses. Never use `DateTime.parse` for
+  /// DATE columns: it yields local midnight, which breaks date equality.
+  static DateTime parseDate(String iso) {
+    final d = DateTime.parse(iso);
+    return DateTime.utc(d.year, d.month, d.day);
+  }
 }
