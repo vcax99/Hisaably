@@ -9,10 +9,16 @@ class FakeLedger {
 
   /// Whether the signed-in viewer may edit/delete (Group Admin / Super Admin).
   bool canManage;
+
+  /// Entries the viewer added themselves (a member may edit/delete these).
+  final ownIds = <String>{};
   final transactions = <String, Transaction>{};
 
   /// Soft-deleted ids (for findById).
   final deletedTypes = <String, TransactionType>{};
+
+  /// "Added by" / "Edited by" per id (absent = not recorded).
+  final histories = <String, TransactionHistory>{};
   final categories = <Category>[];
   final listCalls = <TransactionCursor?>[];
   int _seq = 0;
@@ -75,6 +81,16 @@ class FakeTransactionsRepository implements TransactionsRepository {
         : const TransactionUnavailable();
   }
 
+  @override
+  Future<TransactionHistory> history(String id) async {
+    final h = db.histories[id] ?? const TransactionHistory();
+    return TransactionHistory(
+      created: h.created,
+      updated: h.updated,
+      canEdit: db.canManage || db.ownIds.contains(id),
+    );
+  }
+
   String? _canonical(TransactionDraft d) {
     final name = d.category?.trim();
     if (name == null || name.isEmpty) return null;
@@ -134,10 +150,8 @@ class FakeTransactionsRepository implements TransactionsRepository {
     TransactionDraft draft, {
     required int expectedVersion,
   }) async {
-    if (!db.canManage) {
-      throw const PermissionFailure(
-        'Only the Group Admin can edit transactions.',
-      );
+    if (!db.canManage && !db.ownIds.contains(id)) {
+      throw const PermissionFailure('You can edit only the entries you added.');
     }
     final t = db.transactions[id]!;
     if (t.syncVersion != expectedVersion) {
@@ -164,9 +178,9 @@ class FakeTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> delete(String id, {required int expectedVersion}) async {
-    if (!db.canManage) {
+    if (!db.canManage && !db.ownIds.contains(id)) {
       throw const PermissionFailure(
-        'Only the Group Admin can delete transactions.',
+        'You can delete only the entries you added.',
       );
     }
     final removed = db.transactions.remove(id);

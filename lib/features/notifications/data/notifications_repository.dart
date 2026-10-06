@@ -16,6 +16,14 @@ abstract interface class NotificationsRepository {
   Future<void> markRead(String id);
 
   Future<void> markAllRead();
+
+  /// Permanently deletes all of this user's notifications.
+  Future<void> deleteAll();
+
+  /// Days after reading before a notification is deleted; null = never.
+  Future<int?> retentionDays();
+
+  Future<void> setRetentionDays(int? days);
 }
 
 class SupabaseNotificationsRepository implements NotificationsRepository {
@@ -23,6 +31,8 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
 
   final SupabaseClient _client;
   final CacheStore? _cache;
+
+  static const _firstPageKey = 'notifications.first';
 
   static const _columns =
       'id, group_id, transaction_id, type, title, body, is_read, created_at';
@@ -66,7 +76,7 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
     // First page: cached for offline viewing.
     return fetchWithCache(
       _cache,
-      'notifications.first',
+      _firstPageKey,
       () => _fetch(null, limit),
       (raw, cachedAt) => _page(raw, limit, cachedAt),
     );
@@ -93,6 +103,29 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
   @override
   Future<void> markAllRead() =>
       _guard(() => _client.rpc<void>('mark_all_notifications_read'));
+
+  @override
+  Future<void> deleteAll() => _guard(() async {
+    await _client.rpc<int>('delete_all_notifications');
+    // The offline copy of the first page must not bring them back.
+    await _cache?.put(_firstPageKey, const <Object>[]);
+  });
+
+  @override
+  Future<int?> retentionDays() => _guard(() async {
+    final json = await _client.rpc<Map<String, dynamic>>(
+      'get_notification_settings',
+    );
+    return (json['retention_days'] as num?)?.toInt();
+  });
+
+  @override
+  Future<void> setRetentionDays(int? days) => _guard(
+    () => _client.rpc<Map<String, dynamic>>(
+      'set_notification_retention',
+      params: {'p_days': days},
+    ),
+  );
 
   Future<T> _guard<T>(Future<T> Function() body) async {
     try {

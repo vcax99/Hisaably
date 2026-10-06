@@ -22,6 +22,7 @@ Everything the app talks to on the server: tables it may read, RPCs it calls, th
 | `groups`, `group_members`, `group_categories`, `transactions`, `monthly_summaries` | Super Admin, or active members of that active group |
 | `notification_devices` | own devices |
 | `notifications` | own notifications (active users only) |
+| `transaction_history` | nobody directly. Read through `get_transaction_history()` |
 
 ## RPCs (`supabase.rpc(name, params)`)
 
@@ -41,8 +42,9 @@ Everything the app talks to on the server: tables it may read, RPCs it calls, th
 | enableMember / disableMember | `set_group_member_status(p_group_id, p_user_id, p_status)` | Super Admin; Group Admin for plain members other than themselves |
 | assignGroupAdmin / removeGroupAdmin | `set_group_member_role(p_group_id, p_user_id, p_group_role)` | Super Admin |
 | addTransaction, syncPendingTransactions | `upsert_transaction(p_id, p_group_id, p_type, p_amount, p_category, p_description, p_transaction_date)` → `{created, transaction}` | active members, Super Admin |
-| updateTransaction | `update_transaction(p_id, p_type, p_amount, p_category, p_description, p_transaction_date, p_expected_version?)` | Group Admin of that group, Super Admin |
-| deleteTransaction | `delete_transaction(p_id, p_expected_version?)` (soft delete) | Group Admin of that group, Super Admin |
+| updateTransaction | `update_transaction(p_id, p_type, p_amount, p_category, p_description, p_transaction_date, p_expected_version?)` | Group Admin of that group, Super Admin, or an active member who added that entry |
+| deleteTransaction | `delete_transaction(p_id, p_expected_version?)`: **hard delete**, idempotent | same as updateTransaction |
+| (deleted lookup) | `get_deleted_transaction(p_id)` → `{type}` if it was deleted and the caller can see its group, else null | members of that group |
 | listTransactions | `list_transactions(p_group_id?, p_type?, p_from?, p_to?, p_category?, p_min_amount?, p_max_amount?, p_cursor_date?, p_cursor_created_at?, p_cursor_id?, p_limit=30)` | per group access |
 | getTransaction | `select` on `transactions` | per RLS |
 | (categories) | `select` on `group_categories` (`is_active = true` for pickers); `rename_group_category(p_category_id, p_name)`, `delete_group_category(p_category_id)` | read: members; edit: Group Admin, Super Admin |
@@ -53,6 +55,9 @@ Everything the app talks to on the server: tables it may read, RPCs it calls, th
 | registerDevice / unregisterDevice | `register_device(p_token, p_platform)`, `unregister_device(p_token)` | own |
 | getNotifications | `select` on `notifications` order by `created_at desc` | own |
 | markNotificationRead | `mark_notification_read(p_notification_id)`, `mark_all_notifications_read()` | own |
+| (delete notifications) | `delete_all_notifications()` → count deleted | own |
+| (auto-delete setting) | `get_notification_settings()` → `{retention_days}`; `set_notification_retention(p_days)` with 7, 15 or null (never) | own |
+| (entry history) | `get_transaction_history(p_transaction_id)` → `{created: {name, at} \| null, updated: {name, at} \| null, can_edit}` | anyone who can see the entry |
 
 **Behaviour notes**
 - `upsert_transaction` is **idempotent** on the client-generated UUID. A retry returns `created: false` with the stored row, and never duplicates or re-notifies.
@@ -91,6 +96,29 @@ Called only by the database (`pg_net`, after commit) with the header `x-dispatch
 - Without the `FCM_SERVICE_ACCOUNT` secret it returns `{skipped: "push not configured"}`, so in-app notifications still work.
 - Configure with `scripts/configure_push_dispatch.sh [service-account.json]`.
 
+## Entry history ("Added by" / "Edited by")
+Transactions themselves never store a person: the group owns the money. Who did what is kept in a separate table, `transaction_history` (`transaction_id`, `action` CREATED/UPDATED/DELETED, `actor_id`, `created_at`), written by an `AFTER INSERT OR UPDATE` trigger on `transactions` from the caller's `auth.uid()`.
+
+- Only changes made by a signed-in user are recorded (not SQL scripts or jobs).
+- An update counts as an edit only when type, amount, category, description or date actually changed. Renaming a category, which rewrites past entries, is not recorded (`rename_group_category` sets a transaction-local flag).
+- **Who may edit/delete** (`can_edit_transaction`): the group's Group Admin, the Super Admin, or an active member whose `CREATED` row it is. Entries with no recorded author stay admin-only. The app shows Edit/Delete from `can_edit`.
+- `actor_id` becomes null when the user is deleted; the app shows "Deleted user". Entries from before history existed have no CREATED row; the app shows "Not recorded".
+
+## Notification cleanup
+- `notifications.read_at` is set by a trigger when `is_read` turns true.
+- `profiles.notification_retention_days` (7, 15 or null = never; default 7).
+- `pg_cron` job `hisaably-daily-cleanup` runs daily at 21:30 UTC (03:00 IST): `purge_read_notifications()` deletes read notifications whose `read_at` is older than their recipient's retention (unread ones are never auto-deleted), and `purge_deleted_transactions()` drops tombstones older than 90 days.
+
+## Deleting entries (hard delete)
+`delete_transaction` removes the row from `transactions`. Its `transaction_history` rows cascade, and notifications keep their text with `transaction_id` set to null (the app then says "This expense has been deleted").
+
+A tombstone in `deleted_transactions` (`id`, `group_id`, `type`, `deleted_at`: no amount, description or person) is kept for 90 days:
+- `upsert_transaction` refuses a deleted id with `DELETED`, so a late re-send from a phone's offline queue can't bring the entry back. The app then drops it quietly.
+- A second `delete_transaction` of the same id is a no-op.
+- `get_deleted_transaction` lets an old push notification tap say "has been deleted".
+
+`transactions.deleted_at` still exists but is always null (constraint `transactions_no_soft_delete`).
+
 ## Monthly processing
 `pg_cron` job `hisaably-monthly` runs daily at 18:35 UTC (00:05 IST) and acts only on the 1st (IST): it upserts last month's `monthly_summaries` and sends one "New Month Started" notification per active member, deduplicated by `dedupe_key`. To re-run a missed month: `select public.run_monthly_processing('YYYY-MM-01');`
 
@@ -116,6 +144,9 @@ Users type a **username**. The app signs in with email `<username>@users.hisaabl
 | `…1200_list_keyset_index` | partial index for keyset pagination |
 | `…1300_list_transactions_fast_path` | single-group fast path for `list_transactions` |
 | `…1400_group_balances` | `get_group_balances(p_month)` for the "By group" card |
+| `…1500_entry_history_notification_cleanup` | entry history, notification `read_at`, retention setting, delete-all, daily cleanup job |
+| `…1600_members_edit_own_entries` | members may edit/delete entries they added |
+| `…1700_hard_delete_entries` | hard delete + 90-day tombstones, purge of old soft-deleted rows, `hisaably-daily-cleanup` job |
 
 **Rule for new migrations that create functions:** end with
 ```sql
@@ -138,6 +169,7 @@ npx supabase db query --linked -f supabase/tests/smoke/phase2_schema_smoke.sql
 npx supabase db query --linked -f supabase/tests/smoke/phase3_security_smoke.sql
 npx supabase db query --linked -f supabase/tests/smoke/phase11_push_dispatch_smoke.sql
 npx supabase db query --linked -f supabase/tests/smoke/phase12_monthly_smoke.sql
+npx supabase db query --linked -f supabase/tests/smoke/phase16_history_notifications_smoke.sql
 # Edge Function end-to-end (creates + deletes throwaway users)
 supabase/tests/e2e/run_admin_users_e2e.sh
 # Linter

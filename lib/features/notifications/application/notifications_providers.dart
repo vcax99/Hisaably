@@ -96,6 +96,12 @@ class NotificationListController extends AsyncNotifier<NotificationListState> {
     }
     ref.invalidate(unreadNotificationsProvider);
   }
+
+  Future<void> deleteAll() async {
+    await ref.read(notificationsRepositoryProvider).deleteAll();
+    state = const AsyncData(NotificationListState(items: [], hasMore: false));
+    ref.invalidate(unreadNotificationsProvider);
+  }
 }
 
 final notificationListProvider =
@@ -114,3 +120,8 @@ final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
     return 0;
   }
 });
+
+/// Auto-delete setting for read notifications: 7, 15, or null (never).
+final notificationRetentionProvider = FutureProvider.autoDispose<int?>(
+  (ref) => ref.watch(notificationsRepositoryProvider).retentionDays(),
+);

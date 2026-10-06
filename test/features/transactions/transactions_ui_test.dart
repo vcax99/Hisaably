@@ -195,6 +195,79 @@ void main() {
       expect(find.text('Delete'), findsNothing);
     });
 
+    testWidgets('member edits their own entry, not others\'', (tester) async {
+      final db = seeded();
+      final food = db.transactions.values.firstWhere(
+        (t) => t.category == 'Food',
+      );
+      db.ownIds.add(food.id);
+      await _pump(tester, ledger: db, location: Routes.memberExpenses);
+
+      await tester.tap(find.text('Rent')); // added by someone else
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Delete'), findsNothing);
+      await tester.tapAt(const Offset(20, 80));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Food')); // their own
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Amount'), '910');
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+      expect(db.transactions[food.id]!.amountPaise, 91000);
+      expect(find.text('−₹910'), findsOneWidget);
+    });
+
+    testWidgets('details show who added and who last edited', (tester) async {
+      final db = seeded();
+      final food = db.transactions.values.firstWhere(
+        (t) => t.category == 'Food',
+      );
+      db.histories[food.id] = TransactionHistory(
+        created: HistoryEvent(
+          name: 'Meera Iyer',
+          at: DateTime(2026, 10, 5, 9, 41),
+        ),
+        updated: HistoryEvent(
+          name: 'Aarav Sharma',
+          at: DateTime(2026, 10, 5, 18, 2),
+        ),
+      );
+      await _pump(tester, ledger: db, location: Routes.memberExpenses);
+      await tester.tap(find.text('Food'));
+      await tester.pumpAndSettle();
+      expect(find.text('Added by'), findsOneWidget);
+      expect(find.text('Meera Iyer · 5 Oct 2026, 9:41 AM'), findsOneWidget);
+      expect(find.text('Edited by'), findsOneWidget);
+      expect(find.text('Aarav Sharma · 5 Oct 2026, 6:02 PM'), findsOneWidget);
+    });
+
+    testWidgets('old entries: "Not recorded"; deleted users; no edit line', (
+      tester,
+    ) async {
+      final db = seeded();
+      final food = db.transactions.values.firstWhere(
+        (t) => t.category == 'Food',
+      );
+      db.histories[food.id] = TransactionHistory(
+        created: HistoryEvent(name: null, at: DateTime(2026, 10, 5, 9, 41)),
+      );
+      await _pump(tester, ledger: db, location: Routes.memberExpenses);
+      await tester.tap(find.text('Food'));
+      await tester.pumpAndSettle();
+      expect(find.text('Deleted user · 5 Oct 2026, 9:41 AM'), findsOneWidget);
+      expect(find.text('Edited by'), findsNothing);
+
+      await tester.tapAt(const Offset(20, 80)); // close the sheet
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rent'));
+      await tester.pumpAndSettle();
+      expect(find.text('Not recorded'), findsOneWidget);
+    });
+
     testWidgets('group admin edits an expense', (tester) async {
       final (_, db) = await _pump(
         tester,

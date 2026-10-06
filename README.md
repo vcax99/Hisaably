@@ -123,7 +123,8 @@ The others get a notification, the balance updates for everyone, and the month c
 - Separate **Expenses** and **Income** lists, grouped by day ("Today", "Yesterday", …).
 - **Totals for the month** right on top.
 - **Filters** by category, amount range or all time.
-- Tap any entry for its details. Admins can **edit** or **delete** mistakes, and deleted entries are kept in the records instead of disappearing.
+- Tap any entry for its details, including **who added it** and, if it was changed, **who edited it last**.
+- Made a mistake? **Fix or delete your own entries.** Admins can correct anyone's. A deleted entry is removed for good, and balances update instantly.
 - Long histories load smoothly page by page, even with years of entries.
 
 </td>
@@ -149,7 +150,8 @@ The others get a notification, the balance updates for everyone, and the month c
 - When someone adds an entry, **everyone else in the group gets a notification**: *"Expense Added · ₹850 · Food · 26 Sep"*.
 - On the **1st of every month**: *"New Month Started"*, with last month's closing and this month's opening balance.
 - Tap a notification to jump straight to that entry.
-- An unread badge on the bell, and **Mark all read** when you've caught up.
+- An unread badge on the bell, **Mark all as read** when you've caught up, and **Delete all** for a clean slate.
+- **Auto-delete** read notifications after 7 or 15 days (or never). Your choice, per person.
 
 </td>
 </tr>
@@ -172,12 +174,13 @@ Each group has **up to 10 active members** and a simple role system:
 | See the dashboard, ledger and charts | ✅ | ✅ |
 | Add income and expenses | ✅ | ✅ |
 | Get notifications | ✅ | ✅ |
-| Edit or delete entries | | ✅ |
+| Edit or delete **their own** entries | ✅ | ✅ |
+| Edit or delete **anyone's** entries | | ✅ |
 | Rename and tidy up categories | | ✅ |
 | Rename the group | | ✅ |
 | Enable or disable members | | ✅ |
 
-Money belongs to **the group**, not to any one person. Entries record *what* happened, not *who typed it*, so there's no "your expense vs my expense". It's the group's hisaab.
+Money belongs to **the group**, not to any one person, so there's no "your expense vs my expense". It's the group's hisaab. Each entry still shows who added it and who last edited it, so nothing is a mystery.
 
 </td>
 <td width="45%" align="center">

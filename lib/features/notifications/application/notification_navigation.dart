@@ -50,7 +50,8 @@ Future<void> openNotificationTarget(
 
   final noun = type == NotificationType.expenseAdded ? 'expense' : 'income';
   if (transactionId == null || transactionId.isEmpty) {
-    _toast('This $noun is no longer available.');
+    // The server unlinks notifications when their entry is deleted.
+    _toast('This $noun has been deleted.');
     return;
   }
 

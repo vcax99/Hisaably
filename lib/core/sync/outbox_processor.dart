@@ -114,6 +114,13 @@ class OutboxProcessor {
             return FlushResult(synced: synced, failed: failed);
           case UnexpectedFailure() when item.retryCount + 1 < maxAttempts:
             await _reschedule(item, failure.message);
+          case RuleFailure(code: 'DELETED'):
+            // It reached the server earlier (the reply was lost) and has
+            // since been deleted: nothing left to send or show.
+            await _db.transaction(() async {
+              await _local.remove(item.entityId);
+              await _setStatus(item.id, 'SYNCED', clearError: true);
+            });
           default:
             // Business rejection (validation, permission, disabled account
             // or group, …) or too many server errors: park it for review.

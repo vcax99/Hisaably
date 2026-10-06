@@ -34,12 +34,12 @@ A Flutter app (Android + iOS) backed entirely by **Supabase**. There's no custom
 | Privileged admin | Edge Function `admin-users` (create/disable/delete users, reset passwords) |
 | Offline | Drift (SQLite) cache + an outbox that syncs when the server is reachable |
 | Push | Edge Function `send-push` → Firebase Cloud Messaging (Android only) |
-| Scheduled jobs | `pg_cron` (monthly summaries and "New Month Started" notifications) |
+| Scheduled jobs | `pg_cron` (monthly summaries and "New Month Started" notifications; daily cleanup of old read notifications) |
 
 **Roles**
 - **Super Admin** (global): creates users and groups, assigns Group Admins, sees everything.
-- **Group Admin** (per group): edits/deletes entries, manages categories, renames the group, enables or disables plain members.
-- **Member** (per group): views everything in the group and adds income/expenses.
+- **Group Admin** (per group): edits/deletes any entry, manages categories, renames the group, enables or disables plain members.
+- **Member** (per group): views everything in the group, adds income/expenses, and edits/deletes the entries they added themselves.
 
 Money belongs to the group: transactions never store who created them.
 
@@ -267,7 +267,7 @@ scripts/                       helper scripts (checks, live tests, push config�
 ## 9. Rules you must follow
 
 **Data and security**
-- Transactions carry **no user reference** (`created_by`, `user_id`, …), including in Drift tables and outbox payloads.
+- Transactions carry **no user reference** (`created_by`, `user_id`, …), including in Drift tables and outbox payloads. "Added by" / "Edited by" come from the separate server-side `transaction_history` table (see [BACKEND.md](BACKEND.md)).
 - Clients have **no INSERT/UPDATE/DELETE** grants. Every write goes through an RPC or the `admin-users` function, and every permission is checked **on the server**. UI hiding is cosmetic.
 - **New SQL functions:** end the migration with
   ```sql

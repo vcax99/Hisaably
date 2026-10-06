@@ -188,9 +188,32 @@ void main() {
     await tester.tap(find.byTooltip('Notifications'));
     await waitFor(tester, find.textContaining('New Month Started'));
     await shot(tester, '04d_notifications');
-    if (find.byKey(const Key('mark-all-read')).evaluate().isNotEmpty) {
+    // Auto-delete setting (server-side): keep the QA account's history
+    // ("Never"), so this flow always finds its monthly notification.
+    await waitFor(tester, find.byKey(const Key('retention-dropdown')));
+    final retention = find.descendant(
+      of: find.byKey(const Key('retention-dropdown')),
+      matching: find.text('Never'),
+    );
+    if (retention.evaluate().isEmpty) {
+      await tester.tap(find.byKey(const Key('retention-dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Never').last);
+      await waitFor(tester, find.text('Read notifications will be kept'));
+      await waitFor(tester, retention);
+    }
+    // The ⋮ menu has "Mark all as read" and "Delete all" (not used here:
+    // it would delete the monthly notification for good).
+    await tester.tap(find.byKey(const Key('notifications-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('delete-all')), findsOneWidget);
+    await shot(tester, '04e_notifications_menu');
+    if (find.byKey(const Key('unread-dot')).evaluate().isNotEmpty) {
       await tester.tap(find.byKey(const Key('mark-all-read')));
       await waitForGone(tester, find.byKey(const Key('unread-dot')));
+    } else {
+      await tester.tapAt(const Offset(10, 10)); // close the menu
+      await tester.pumpAndSettle();
     }
     expect(find.byKey(const Key('unread-dot')), findsNothing);
     // Tapping a monthly notification opens the Dashboard.
@@ -234,7 +257,23 @@ void main() {
     await shot(tester, '05c_expenses_list');
     await tester.tap(find.textContaining(note));
     await waitFor(tester, find.widgetWithText(OutlinedButton, 'Delete'));
+    // Who added it (server-side entry history).
+    await waitFor(tester, find.textContaining('QA Member ·'));
+    expect(find.text('Edited by'), findsNothing);
     await shot(tester, '05d_expense_detail');
+    // Edit it → "Edited by" appears.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Edit'));
+    await waitFor(tester, find.text('Save changes'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '124');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save changes'));
+    await waitFor(tester, find.text('−₹124'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining(note));
+    await waitFor(tester, find.text('Edited by'));
+    expect(find.textContaining('QA Member ·'), findsNWidgets(2));
+    await shot(tester, '05e_expense_detail_edited');
     await tester.tap(find.widgetWithText(OutlinedButton, 'Delete'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, 'Delete'));

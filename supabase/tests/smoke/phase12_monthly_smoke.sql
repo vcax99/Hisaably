@@ -36,9 +36,6 @@ begin
     (gen_random_uuid(), g1, 'EXPENSE', 200, 'Food', date '2026-09-20'),
     (gen_random_uuid(), g1, 'EXPENSE', 50, 'Food', date '2026-10-01'),
     (gen_random_uuid(), g2, 'INCOME', 70, null, date '2026-09-01');
-  -- A soft-deleted entry must not count.
-  insert into public.transactions (id, group_id, type, amount, category, transaction_date, deleted_at)
-  values (gen_random_uuid(), g1, 'EXPENSE', 9999, 'Food', date '2026-09-10', now());
   update public.groups set status = 'DISABLED' where id = g2;
   select count(*) into v_tx_before from public.transactions;
 

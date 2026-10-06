@@ -193,15 +193,33 @@ void main() {
       throwsA(isA<ValidationFailure>()),
     );
 
-    // Members can't edit or delete.
+    // Decision 16: members edit/delete only entries they added.
+    final byAdmin = await SupabaseTransactionsRepository(await clientAs('ga'))
+        .add(draft(paise: 4200));
+    expect((await txs.history(byAdmin.id)).canEdit, isFalse);
     await expectLater(
-      txs.update(id, draft(paise: 1), expectedVersion: first.syncVersion),
+      txs.update(byAdmin.id, draft(paise: 1), expectedVersion: 1),
       throwsA(isA<PermissionFailure>()),
     );
     await expectLater(
-      txs.delete(id, expectedVersion: first.syncVersion),
+      txs.delete(byAdmin.id, expectedVersion: 1),
       throwsA(isA<PermissionFailure>()),
     );
+
+    final mine = await txs.add(draft(paise: 7700));
+    final history = await txs.history(mine.id);
+    expect(history.canEdit, isTrue);
+    expect(history.created?.name, isNotNull);
+    final edited = await txs.update(
+      mine.id,
+      draft(paise: 7800),
+      expectedVersion: mine.syncVersion,
+    );
+    expect(edited.amountPaise, 7800);
+    expect((await txs.history(mine.id)).updated?.name, history.created?.name);
+    await txs.delete(mine.id, expectedVersion: edited.syncVersion);
+    final lookup = await txs.findById(mine.id);
+    expect(lookup, isA<TransactionDeleted>());
   }, skip: _skip);
 
   test('group admin: edit with version check, delete, categories', () async {

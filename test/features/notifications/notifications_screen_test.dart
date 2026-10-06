@@ -34,13 +34,15 @@ Future<FakeNotificationsRepository> _pump(
   return repo;
 }
 
+PopupMenuItem<Object?> _menuItem(WidgetTester tester, String key) =>
+    tester.widget<PopupMenuItem<Object?>>(find.byKey(Key(key)));
+
 void main() {
   testWidgets('lists notifications; unread ones have a dot', (tester) async {
     await _pump(tester, [_n(0), _n(1, read: true)]);
     expect(find.text('Title 0'), findsOneWidget);
     expect(find.text('Body 1'), findsOneWidget);
     expect(find.byKey(const Key('unread-dot')), findsOneWidget);
-    expect(find.byKey(const Key('mark-all-read')), findsOneWidget);
   });
 
   testWidgets('tapping an unread one marks it read at once', (tester) async {
@@ -49,12 +51,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.markedRead, ['n0']);
     expect(find.byKey(const Key('unread-dot')), findsNothing);
-    expect(find.byKey(const Key('mark-all-read')), findsNothing);
+    await tester.tap(find.byKey(const Key('notifications-menu')));
+    await tester.pumpAndSettle();
+    expect(_menuItem(tester, 'mark-all-read').enabled, isFalse);
   });
 
   testWidgets('mark all read clears every dot', (tester) async {
     final repo = await _pump(tester, [_n(0), _n(1), _n(2)]);
     expect(find.byKey(const Key('unread-dot')), findsNWidgets(3));
+    await tester.tap(find.byKey(const Key('notifications-menu')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('mark-all-read')));
     await tester.pumpAndSettle();
     expect(repo.markAllCalls, 1);
@@ -90,5 +96,47 @@ void main() {
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(find.text('Title 0'), findsOneWidget);
+  });
+
+  testWidgets('delete all asks first, then empties the list', (tester) async {
+    final repo = await _pump(tester, [_n(0), _n(1, read: true)]);
+    await tester.tap(find.byKey(const Key('notifications-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-all')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete all notifications?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(repo.deleteAllCalls, 0);
+    expect(find.text('Title 0'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('notifications-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-all')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Delete all'));
+    await tester.pumpAndSettle();
+    expect(repo.deleteAllCalls, 1);
+    expect(find.text('No notifications yet'), findsOneWidget);
+  });
+
+  testWidgets('auto-delete setting: shows 7 days, can switch to Never', (
+    tester,
+  ) async {
+    final repo = await _pump(tester, [_n(0)]);
+    expect(find.text('Auto-delete read notifications'), findsOneWidget);
+    expect(find.text('After 7 days'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('retention-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Never').last);
+    await tester.pumpAndSettle();
+    expect(repo.retention, isNull);
+    expect(find.text('Never'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('retention-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('After 15 days').last);
+    await tester.pumpAndSettle();
+    expect(repo.retention, 15);
   });
 }

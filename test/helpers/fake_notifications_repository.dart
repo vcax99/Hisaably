@@ -10,6 +10,8 @@ class FakeNotificationsRepository implements NotificationsRepository {
   bool offline = false;
   final markedRead = <String>[];
   var markAllCalls = 0;
+  var deleteAllCalls = 0;
+  int? retention = 7;
 
   @override
   Future<NotificationPage> list({
@@ -32,4 +34,19 @@ class FakeNotificationsRepository implements NotificationsRepository {
 
   @override
   Future<void> markAllRead() async => markAllCalls++;
+
+  @override
+  Future<void> deleteAll() async {
+    deleteAllCalls++;
+    items.clear();
+  }
+
+  @override
+  Future<int?> retentionDays() async {
+    if (offline) throw const NetworkFailure();
+    return retention;
+  }
+
+  @override
+  Future<void> setRetentionDays(int? days) async => retention = days;
 }

@@ -243,3 +243,43 @@ class TransactionDeleted extends TransactionLookup {
 class TransactionUnavailable extends TransactionLookup {
   const TransactionUnavailable();
 }
+
+/// One "who did it" record of an entry's history.
+class HistoryEvent {
+  const HistoryEvent({required this.name, required this.at});
+
+  /// Null when that user has since been deleted.
+  final String? name;
+  final DateTime at;
+
+  static HistoryEvent? fromJson(Object? json) {
+    if (json is! Map) return null;
+    return HistoryEvent(
+      name: json['name'] as String?,
+      at: DateTime.parse(json['at'] as String).toLocal(),
+    );
+  }
+}
+
+/// Who added an entry and who last edited it (kept apart from the entry
+/// itself: the group owns the money).
+class TransactionHistory {
+  const TransactionHistory({this.created, this.updated, this.canEdit = false});
+
+  /// Null for entries added before history was recorded.
+  final HistoryEvent? created;
+
+  /// Null when the entry was never edited.
+  final HistoryEvent? updated;
+
+  /// Whether the viewer may edit/delete it: Group Admin / Super Admin, or a
+  /// member who added it themselves (decided and enforced by the server).
+  final bool canEdit;
+
+  factory TransactionHistory.fromJson(Map<String, dynamic> json) =>
+      TransactionHistory(
+        created: HistoryEvent.fromJson(json['created']),
+        updated: HistoryEvent.fromJson(json['updated']),
+        canEdit: json['can_edit'] == true,
+      );
+}

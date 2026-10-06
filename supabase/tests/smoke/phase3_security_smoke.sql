@@ -221,11 +221,34 @@ begin
   if v_bool then raise exception 'FAIL 13c: category still active'; end if;
   v_passed := v_passed + 1;
 
-  -- 14. soft delete
+  -- 14. hard delete (decision 17): row gone, retry is a no-op, a late
+  --     re-send of the same id can't bring it back
   perform public.delete_transaction(tx1);
   perform public.delete_transaction(tx1);  -- idempotent
   select count(*) into v_int from public.list_transactions(g1);
   if v_int <> 1 then raise exception 'FAIL 14: deleted tx listed (% rows)', v_int; end if;
+  if public.get_deleted_transaction(tx1) ->> 'type' <> 'EXPENSE' then
+    raise exception 'FAIL 14b: tombstone not visible';
+  end if;
+  begin
+    perform public.upsert_transaction(tx1, g1, 'EXPENSE', 850, 'Food', 'Lunch', date '2026-09-26');
+    raise exception 'FAIL 14c: deleted entry re-created';
+  exception when others then
+    get stacked diagnostics v_hint = pg_exception_hint, v_msg = message_text;
+    if v_msg like 'FAIL%' then raise; end if;
+    if v_hint <> 'DELETED' then raise exception 'FAIL 14c: %', v_msg; end if;
+  end;
+  perform set_config('role', 'none', true);
+  if exists (select 1 from public.transactions where id = tx1) then
+    raise exception 'FAIL 14d: row still in the database';
+  end if;
+  if exists (select 1 from public.transaction_history where transaction_id = tx1) then
+    raise exception 'FAIL 14e: history kept';
+  end if;
+  if exists (select 1 from public.notifications where transaction_id = tx1) then
+    raise exception 'FAIL 14f: notification still linked';
+  end if;
+  perform set_config('role', 'authenticated', true);
   v_passed := v_passed + 1;
 
   -- ============================== DISABLED MEMBER (membership)
@@ -390,7 +413,10 @@ begin
                            'validate_transaction_fields', 'format_inr', 'ist_today',
                            'handle_new_auth_user', 'enforce_group_member_limit',
                            'seed_group_categories', 'transactions_before_write', 'set_updated_at',
-                           'dispatch_push_notifications', 'run_monthly_processing')
+                           'dispatch_push_notifications', 'run_monthly_processing',
+                           'record_transaction_history', 'notifications_set_read_at',
+                           'purge_read_notifications', 'can_edit_transaction',
+                           'purge_deleted_transactions')
              and has_function_privilege('authenticated', p.oid, 'EXECUTE')));
   if v_text is not null then raise exception 'FAIL 24b: over-exposed functions: %', v_text; end if;
   v_passed := v_passed + 1;
