@@ -10,6 +10,7 @@ import '../../../core/widgets/dialogs.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../application/notification_navigation.dart';
 import '../application/notifications_providers.dart';
+import '../data/notifications_repository.dart';
 import '../domain/app_notification.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -18,20 +19,50 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final list = ref.watch(notificationListProvider);
-    final hasUnread = list.value?.items.any((n) => !n.isRead) ?? false;
+    final items = list.value?.items ?? const <AppNotification>[];
+    final hasUnread = items.any((n) => !n.isRead);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
-          if (hasUnread)
-            TextButton(
-              key: const Key('mark-all-read'),
-              onPressed: () => runAction(
+          PopupMenuButton<_MenuAction>(
+            key: const Key('notifications-menu'),
+            tooltip: 'More',
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (action) => switch (action) {
+              _MenuAction.markAllRead => runAction(
                 context,
                 () => ref.read(notificationListProvider.notifier).markAllRead(),
+                successMessage: 'All notifications marked as read',
               ),
-              child: const Text('Mark all read'),
-            ),
+              _MenuAction.deleteAll => _deleteAll(context, ref),
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                key: const Key('mark-all-read'),
+                value: _MenuAction.markAllRead,
+                enabled: hasUnread,
+                child: const ListTile(
+                  leading: Icon(Icons.done_all_rounded),
+                  title: Text('Mark all as read'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                key: const Key('delete-all'),
+                value: _MenuAction.deleteAll,
+                enabled: items.isNotEmpty,
+                child: const ListTile(
+                  leading: Icon(
+                    Icons.delete_sweep_outlined,
+                    color: AppColors.expense,
+                  ),
+                  title: Text('Delete all'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: AsyncValueView(
@@ -61,6 +92,7 @@ class NotificationsScreen extends ConsumerWidget {
               ),
               children: [
                 SyncBanner(cachedAt: state.cachedAt),
+                const _RetentionRow(),
                 if (state.items.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: AppSpacing.xxl),
@@ -99,6 +131,100 @@ class NotificationsScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+enum _MenuAction { markAllRead, deleteAll }
+
+Future<void> _deleteAll(BuildContext context, WidgetRef ref) async {
+  final confirmed = await showConfirmDialog(
+    context,
+    title: 'Delete all notifications?',
+    message:
+        'All your notifications, read and unread, will be deleted '
+        'permanently. Entries in your group are not affected.',
+    confirmLabel: 'Delete all',
+    destructive: true,
+  );
+  if (!confirmed || !context.mounted) return;
+  await runAction(
+    context,
+    () => ref.read(notificationListProvider.notifier).deleteAll(),
+    successMessage: 'Notifications deleted',
+  );
+}
+
+/// "Auto-delete read notifications: Never / After 7 days / After 15 days".
+class _RetentionRow extends ConsumerWidget {
+  const _RetentionRow();
+
+  static const _never = 0; // dropdown value for "never" (null on the server)
+  static const _options = {
+    _never: 'Never',
+    7: 'After 7 days',
+    15: 'After 15 days',
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final retention = ref.watch(notificationRetentionProvider);
+    final textTheme = Theme.of(context).textTheme;
+    // Offline or not loaded yet: the setting lives on the server.
+    if (!retention.hasValue) return const SizedBox.shrink();
+    final current = retention.value ?? _never;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_delete_outlined, color: AppColors.textMuted),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              'Auto-delete read notifications',
+              style: textTheme.bodyMedium,
+            ),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              key: const Key('retention-dropdown'),
+              value: _options.containsKey(current) ? current : _never,
+              dropdownColor: AppColors.elevated,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              style: textTheme.bodyLarge,
+              items: [
+                for (final MapEntry(:key, :value) in _options.entries)
+                  DropdownMenuItem(value: key, child: Text(value)),
+              ],
+              onChanged: (days) async {
+                if (days == null || days == current) return;
+                final ok = await runAction(
+                  context,
+                  () => ref
+                      .read(notificationsRepositoryProvider)
+                      .setRetentionDays(days == _never ? null : days),
+                  successMessage: days == _never
+                      ? 'Read notifications will be kept'
+                      : 'Read notifications will be deleted '
+                            '${_options[days]!.toLowerCase()}',
+                );
+                if (ok) ref.invalidate(notificationRetentionProvider);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

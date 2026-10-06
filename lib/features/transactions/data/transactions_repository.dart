@@ -46,6 +46,9 @@ abstract interface class TransactionsRepository {
   /// One transaction by id, telling a deleted entry apart from one the user
   /// can't see. Throws NetworkFailure when offline and not cached.
   Future<domain.TransactionLookup> findById(String id);
+
+  /// Who added the entry and who last edited it. Needs a connection.
+  Future<domain.TransactionHistory> history(String id);
 }
 
 class SupabaseTransactionsRepository implements TransactionsRepository {
@@ -62,11 +65,29 @@ class SupabaseTransactionsRepository implements TransactionsRepository {
         .select()
         .eq('id', id)
         .maybeSingle();
-    if (row == null) return const domain.TransactionUnavailable();
-    final t = domain.Transaction.fromJson(row);
-    return row['deleted_at'] != null
-        ? domain.TransactionDeleted(t.type)
-        : domain.TransactionFound(t);
+    if (row != null) {
+      return domain.TransactionFound(domain.Transaction.fromJson(row));
+    }
+    // Deleted entries are gone from the table (hard delete); the server keeps
+    // a short-lived tombstone so we can still say "has been deleted".
+    final gone = await _client.rpc<Map<String, dynamic>?>(
+      'get_deleted_transaction',
+      params: {'p_id': id},
+    );
+    return gone == null
+        ? const domain.TransactionUnavailable()
+        : domain.TransactionDeleted(
+            TransactionType.fromWire(gone['type'] as String),
+          );
+  });
+
+  @override
+  Future<domain.TransactionHistory> history(String id) => _guard(() async {
+    final json = await _client.rpc<Map<String, dynamic>>(
+      'get_transaction_history',
+      params: {'p_transaction_id': id},
+    );
+    return domain.TransactionHistory.fromJson(json);
   });
 
   Future<T> _guard<T>(Future<T> Function() body) async {
@@ -445,6 +466,9 @@ class OfflineFirstTransactionsRepository implements TransactionsRepository {
       rethrow;
     }
   }
+
+  @override
+  Future<domain.TransactionHistory> history(String id) => _remote.history(id);
 
   @override
   Future<int> total(domain.TransactionFilter filter) async {

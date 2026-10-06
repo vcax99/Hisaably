@@ -59,8 +59,9 @@ final allCategoriesProvider = FutureProvider.autoDispose
           .list(groupId, includeInactive: true),
     );
 
-/// Whether the viewer may edit/delete transactions of [groupId]
-/// (decision 1: that group's Group Admin or the Super Admin). UX only.
+/// Whether the viewer may edit/delete ANY transaction of [groupId] (that
+/// group's Group Admin or the Super Admin). Members may also edit their own
+/// entries: see [TransactionHistory.canEdit]. UX only.
 final canManageTransactionsProvider = Provider.autoDispose.family<bool, String>(
   (ref, groupId) {
     final ctx = ref.watch(currentUserContextProvider);
@@ -160,11 +161,18 @@ final transactionTotalProvider = FutureProvider.autoDispose
       (ref, filter) => ref.watch(transactionsRepositoryProvider).total(filter),
     );
 
+/// Who added an entry and who last edited it (detail sheet).
+final transactionHistoryProvider = FutureProvider.autoDispose
+    .family<TransactionHistory, String>(
+      (ref, id) => ref.watch(transactionsRepositoryProvider).history(id),
+    );
+
 /// Refresh every list/total after a create/edit/delete.
 void invalidateTransactions(WidgetRef ref) {
   ref
     ..invalidate(transactionListProvider)
     ..invalidate(transactionTotalProvider)
+    ..invalidate(transactionHistoryProvider)
     ..invalidate(dashboardProvider)
     ..invalidate(groupBalancesProvider);
 }

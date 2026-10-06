@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/errors/app_failure.dart';
 import '../../../core/sync/sync_banner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -14,6 +15,7 @@ import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/dialogs.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../routing/routes.dart';
+import '../../auth/application/session_controller.dart';
 import '../../groups/application/groups_providers.dart';
 import '../../groups/domain/group.dart';
 import '../application/transactions_providers.dart';
@@ -565,8 +567,9 @@ class _TransactionDetailSheet extends ConsumerWidget {
       title: 'Delete this ${t.type.label.toLowerCase()}?',
       message:
           '${Money.format(t.amountPaise)} · ${t.title} on '
-          '${DateFormat('d MMM yyyy').format(t.date)} will be removed from the '
-          'group\'s ledger and balances.',
+          '${DateFormat('d MMM yyyy').format(t.date)} will be permanently '
+          'deleted and removed from the group\'s balances. This can\'t be '
+          'undone.',
       confirmLabel: 'Delete',
       destructive: true,
     );
@@ -631,9 +634,14 @@ class _TransactionDetailSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = transaction;
     // Unsynced rows exist only on this device: anyone can retry/discard
-    // them, but they can't be edited until the server has them.
+    // them, but they can't be edited until the server has them. Synced rows:
+    // admins always; members only their own entries (the server decides,
+    // via the history's canEdit, and enforces it on edit/delete).
     final canManage =
-        t.isSynced && ref.watch(canManageTransactionsProvider(t.groupId));
+        t.isSynced &&
+        (ref.watch(canManageTransactionsProvider(t.groupId)) ||
+            (ref.watch(transactionHistoryProvider(t.id)).value?.canEdit ??
+                false));
     final color = t.isExpense ? AppColors.expense : AppColors.income;
     final textTheme = Theme.of(context).textTheme;
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
@@ -664,6 +672,14 @@ class _TransactionDetailSheet extends ConsumerWidget {
             value: DateFormat('EEEE, d MMMM yyyy').format(t.date),
           ),
           if (groupName != null) _DetailRow(label: 'Group', value: groupName!),
+          if (t.isSynced)
+            _HistoryRows(transactionId: t.id)
+          else
+            _DetailRow(
+              label: 'Added by',
+              value:
+                  ref.watch(currentUserContextProvider)?.profile.name ?? 'You',
+            ),
           if (!t.isSynced) ...[
             _DetailRow(
               label: 'Sync',
@@ -731,8 +747,46 @@ class _TransactionDetailSheet extends ConsumerWidget {
   }
 }
 
+/// "Added by" and, after an edit, "Edited by" (from the server's history).
+class _HistoryRows extends ConsumerWidget {
+  const _HistoryRows({required this.transactionId});
+
+  final String transactionId;
+
+  static String _who(HistoryEvent e) =>
+      '${e.name ?? 'Deleted user'} · ${DateFormat('d MMM yyyy, h:mm a').format(e.at)}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(transactionHistoryProvider(transactionId));
+    return history.when(
+      loading: () => const _DetailRow(label: 'Added by', value: '…'),
+      error: (e, _) => _DetailRow(
+        label: 'Added by',
+        value: e is NetworkFailure ? 'Available when online' : 'Unavailable',
+      ),
+      data: (h) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _DetailRow(
+            key: const Key('tx-added-by'),
+            label: 'Added by',
+            value: h.created == null ? 'Not recorded' : _who(h.created!),
+          ),
+          if (h.updated != null)
+            _DetailRow(
+              key: const Key('tx-edited-by'),
+              label: 'Edited by',
+              value: _who(h.updated!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
+  const _DetailRow({super.key, required this.label, required this.value});
 
   final String label;
   final String value;

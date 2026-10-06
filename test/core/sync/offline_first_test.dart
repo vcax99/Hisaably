@@ -214,6 +214,14 @@ void main() {
     expect((await local.byId(t.id))!.isSynced, isTrue);
   });
 
+  test('a re-send of an entry deleted meanwhile just disappears', () async {
+    // Hard delete: the server refuses to re-create a deleted id.
+    remote.rejectWith = const RuleFailure('DELETED', 'This entry was deleted.');
+    final t = await repo.add(draft(700));
+    expect(await local.byId(t.id), isNull);
+    expect((await outbox.all()).single.status, 'SYNCED');
+  });
+
   test('server errors retry with backoff, then FAILED after max', () async {
     remote.rejectWith = const UnexpectedFailure();
     final t = await repo.add(draft(700));
